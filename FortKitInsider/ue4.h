@@ -234,7 +234,7 @@ struct UClass;
 
 struct UObject
 {
-	void** VTableObject;
+	PVOID VTableObject;
 	DWORD ObjectFlags;
 	DWORD InternalIndex;
 	UClass* Class;
@@ -316,37 +316,13 @@ struct UObject
 
 class FField;
 
-struct FFieldVariant
-{
-	union FFieldObjectUnion
-	{
-		FField* Field;
-		UObject* Object;
-	} Container;
-
-	bool bIsUObject;
-};
-
-struct FFieldClass
-{
-	/** Name of this field class */
-	FName Name;
-	/** Unique Id of this field class (for casting) */
-	uint64_t Id;
-	/** Cast flags used for casting to other classes */
-	uint64_t CastFlags;
-	/** Class flags */
-	EClassFlags ClassFlags;
-	/** Super of this class */
-	FFieldClass* SuperClass;
-	/** Default instance of this class */
-	FField* DefaultObject;
-};
 
 struct FField
 {
-	FFieldClass* ClassPrivate;
-	FFieldVariant Owner;
+	void* vtable;
+	void* Class;
+	void* Owner;
+	void* padding;
 	FField* Next;
 	FName NamePrivate;
 	EObjectFlags FlagsPrivate;
@@ -358,7 +334,7 @@ struct FField
 
 	std::wstring GetTypeName()
 	{
-		return ClassPrivate->Name.ToString();
+		return (*static_cast<FName*>(Class)).ToString();
 	}
 
 	std::wstring GetFullName()

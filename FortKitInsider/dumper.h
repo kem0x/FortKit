@@ -1,36 +1,40 @@
 #pragma once
 #include "ue4.h"
+#include "util.h"
 
 namespace Dumper
 {
 	void DumpClass(UClass* Class)
 	{
-		//auto fileType = L".h";
-		//auto fileName = Class->GetName() + fileType;
+		auto fileType = L".h";
+		auto fileName = L"DUMP\\" + Class->GetName() + fileType;
 
-		//std::wofstream file(fileName);
+		std::wofstream file(fileName);
 
-		MessageBoxW(nullptr, Class->ChildProperties->GetName().c_str(), L"k", MB_OK);
+		file << L"struct " << Class->GetName() << " \n{\n";
+
+		if (!Class->ChildProperties && Util::IsBadReadPtr(Class->ChildProperties)) return;
 
 		auto next = Class->ChildProperties->Next;
 
+		if (!next && Util::IsBadReadPtr(next)) return;
+
+		//MessageBoxW(nullptr, Class->ChildProperties->GetName().c_str(), L"k", MB_OK);
+
 		auto firstPropertyName = reinterpret_cast<FField*>(Class->ChildProperties)->GetName();
 
-		//file << firstPropertyName << L"\n";
+		file << firstPropertyName << L"\n";
 
 		while (next)
 		{
-			std::wstring nextName = reinterpret_cast<FField*>(next)->GetName();
+			file << next->GetTypeName() << L" " << next->GetName() << L";\n";
 
-			//file << nextName << L"\n";
-
-			if (next->Next)
-			{
-				next = next->Next;
-			}
+			next = next->Next;
 
 			//fmt::format("{:d}", "I am not a number");
 		}
+
+		file << L"};";
 	}
 
 	void DumpClasses()
