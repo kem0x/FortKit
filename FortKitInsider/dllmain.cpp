@@ -27,6 +27,7 @@ static void Main(HMODULE hModule)
 	FNameToString = decltype(FNameToString)(FNameToStringAdd);
 
 	Dumper::DumpClasses();
+	//Dumper::DumpGObjects();
 
 	//auto PostRenderAddress = (void*)GObjects->GetByIndex(0)->VTableObject[0x64];
 	//PostRender = decltype(PostRender)(PostRenderAddress);

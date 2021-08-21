@@ -1,6 +1,7 @@
 #pragma once
 #include <locale>
 #include "enums.h"
+#include "util.h"
 
 
 template <class T> struct TArray
@@ -39,9 +40,9 @@ public:
 		return i < Num();
 	}
 
-	inline void Add(T InputData)
+	void Add(T InputData)
 	{
-		Data = (T*)realloc(Data, sizeof(T) * (Count + 1));
+		Data = static_cast<T*>(realloc(Data, sizeof(T) * (Count + 1)));
 		Data[Count++] = InputData;
 		Max = Count;
 	};
@@ -105,7 +106,7 @@ struct FName
 		FString temp;
 		FNameToString(this, temp);
 
-		std::wstring ret(temp.ToWString());
+		std::string ret(temp.ToString());
 
 		return ret;
 	}
@@ -144,7 +145,7 @@ private:
 	uint8_t value;
 };
 
-struct UObject;
+class UObject;
 
 struct FUObjectItem
 {
@@ -230,18 +231,24 @@ struct GlobalObjects
 
 inline struct GlobalObjects* GObjects;
 
-struct UClass;
+class UClass;
 
-struct UObject
+struct FPointer
 {
-	PVOID VTableObject;
+	uintptr_t Dummy;
+};
+
+class UObject
+{
+public:
+	FPointer VTableObject;
 	DWORD ObjectFlags;
 	DWORD InternalIndex;
 	UClass* Class;
 	FName NamePrivate;
 	UObject* Outer;
 
-	template <typename T> static T FindObject(wchar_t const* name, bool ends_with = false, int toSkip = 0)
+	template <typename T> static T FindObject(char const* name, bool ends_with = false, int toSkip = 0)
 	{
 		for (auto i = 0x0; i < GObjects->NumElements; ++i)
 		{
@@ -251,7 +258,7 @@ struct UObject
 				continue;
 			}
 
-			std::wstring objectFullName = object->GetFullName();
+			std::string objectFullName = object->GetFullName();
 
 			if (!ends_with)
 			{
@@ -278,81 +285,107 @@ struct UObject
 		return nullptr;
 	}
 
-
-	static auto StaticClass()
+	auto IsValid() const -> bool
 	{
-		static auto c = FindObject<UClass*>(L"Class /Script/CoreUObject.Object");
-		return c;
+		return (this && !Util::IsBadReadPtr((void*)this));
 	}
 
-	bool IsA(UClass* cmp) const
-	{
-		if (this->Class && this->Class == cmp)
-		{
-			return true;
-		}
+	template <typename T> bool IsA() const;
 
-		return false;
+	template <typename Base> Base Cast() const
+	{
+		return Base(this);
 	}
 
-	std::wstring GetName()
+	std::string GetCPPName();
+
+	auto GetName()
 	{
 		return NamePrivate.ToString();
 	}
 
-	std::wstring GetFullName()
+	std::string GetFullName()
 	{
-		std::wstring temp;
+		std::string temp;
 
 		for (auto outer = Outer; outer; outer = outer->Outer)
 		{
-			temp = outer->GetName() + L"." + temp;
+			temp = outer->GetName() + "." + temp;
 		}
 
-		temp = reinterpret_cast<UObject*>(Class)->GetName() + L" " + temp + this->GetName();
+		temp = reinterpret_cast<UObject*>(Class)->GetName() + " " + temp + this->GetName();
 		return temp;
+	}
+
+	static UClass* StaticClass()
+	{
+		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Object");
+		return c;
 	}
 };
 
 class FField;
 
-
-struct FField
+class FFieldVariant
 {
-	void* vtable;
-	void* Class;
-	void* Owner;
-	void* padding;
+public:
+	union FFieldObjectUnion
+	{
+		FField* Field;
+		UObject* Object;
+	} Container;
+
+	bool bIsUObject;
+};
+
+class FFieldClass
+{
+public:
+	FName Name;
+	uint64_t Id;
+	uint64_t CastFlags;
+	EClassFlags ClassFlags;
+	FFieldClass* SuperClass;
+	FField* DefaultObject;
+};
+
+class FField
+{
+public:
+	FPointer VTableObject;
+	FFieldClass* ClassPrivate;
+	FFieldVariant Owner;
 	FField* Next;
 	FName NamePrivate;
 	EObjectFlags FlagsPrivate;
 
-	std::wstring GetName()
+	std::string GetName()
 	{
 		return NamePrivate.ToString();
 	}
 
-	std::wstring GetTypeName()
+	std::string GetTypeName() const
 	{
-		return (*static_cast<FName*>(Class)).ToString();
+		return ClassPrivate->Name.ToString();
 	}
 
-	std::wstring GetFullName()
+	std::string GetFullName()
 	{
-		std::wstring temp;
+		std::string temp;
 
 		for (auto outer = Next; outer; outer = outer->Next)
 		{
-			temp = outer->GetName() + L"." + temp;
+			temp = outer->GetName() + "." + temp;
 		}
 
-		temp = GetTypeName() + L" " + temp + this->GetName();
+		temp = GetTypeName() + " " + temp + this->GetName();
 		return temp;
 	}
 };
 
-struct FProperty : FField
+class FProperty : public FField
 {
+public:
 	int32_t ArrayDim;
 	int32_t ElementSize;
 	EPropertyFlags PropertyFlags;
@@ -366,21 +399,23 @@ struct FProperty : FField
 	FProperty* PostConstructLinkNext;
 };
 
-struct UField : UObject
+class UField : public UObject
 {
+public:
 	UField* Next;
-	void* padding_01;
-	void* padding_02;
+	void* padding;
+	void* padding2;
 
-	static auto StaticClass()
+	static UClass* StaticClass()
 	{
-		static auto c = FindObject<UClass*>(L"Class /Script/CoreUObject.Field");
+		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Field");
 		return c;
 	}
 };
 
-struct UStruct : UField
+class UStruct : public UField
 {
+public:
 	UStruct* SuperStruct;
 	UField* Children;
 	FField* ChildProperties;
@@ -391,41 +426,43 @@ struct UStruct : UField
 	FProperty* RefLink;
 	FProperty* DestructorLink;
 	FProperty* PostConstructLink;
+	TArray<UObject*> ScriptAndPropertyObjectReferences;
+	void /* FUnresolvedScriptPropertiesArray */ * UnresolvedScriptProperties;
 
-	static auto StaticClass()
+	static UClass* StaticClass()
 	{
-		static auto c = FindObject<UClass*>(L"Class /Script/CoreUObject.Struct");
+		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Struct");
 		return c;
 	}
 };
 
-struct UClass : UStruct
+class UClass : public UStruct
 {
-	static auto StaticClass()
+public:
+	static UClass* StaticClass()
 	{
-		static auto c = FindObject<UClass*>(L"Class /Script/CoreUObject.Class");
+		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Class");
 		return c;
 	}
 };
 
-struct UFunction : UStruct
+class UFunction : public UStruct
 {
-	int32_t FunctionFlags;
-	int16_t RepOffset;
-	int8_t NumParms;
-	char unknown1[1];
-	int16_t ParmsSize;
-	int16_t ReturnValueOffset;
-	int16_t RPCId;
-	int16_t RPCResponseId;
-	class UProperty* FirstPropertyToInit;
+public:
+	EFunctionFlags FunctionFlags;
+	uint8_t NumParms;
+	uint16_t ParmsSize;
+	uint16_t ReturnValueOffset; /** Memory offset of return value property */
+	uint16_t RPCId; /** Id of this RPC function call (must be FUNC_Net & (FUNC_NetService|FUNC_NetResponse)) */
+	uint16_t RPCResponseId; /** Id of the corresponding response call (must be FUNC_Net & FUNC_NetService) */
+	FProperty* FirstPropertyToInit;
 	UFunction* EventGraphFunction;
 	int32_t EventGraphCallOffset;
 	void* Func;
 
-	static auto StaticClass()
+	static UClass* StaticClass()
 	{
-		static auto c = FindObject<UClass*>(L"Class /Script/CoreUObject.Function");
+		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Function");
 		return c;
 	}
 };

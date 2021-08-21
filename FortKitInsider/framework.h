@@ -8,6 +8,6 @@
 #include <string>
 #include <string_view>
 #include <fstream>
-#include <fmt/core.h>
+#include "tinyformat.h"
 
 #include "ue4.h"

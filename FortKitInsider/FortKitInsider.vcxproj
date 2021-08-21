@@ -163,24 +163,16 @@
     <ClInclude Include="enums.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="dumper.h" />
+    <ClInclude Include="generic.h" />
     <ClInclude Include="memory.h" />
+    <ClInclude Include="tinyformat.h" />
     <ClInclude Include="ue4.h" />
     <ClInclude Include="util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
+    <ClCompile Include="ue4.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\fmt-static.7.0.3.4\build\fmt-static.targets" Condition="Exists('..\packages\fmt-static.7.0.3.4\build\fmt-static.targets')" />
-  </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\fmt-static.7.0.3.4\build\fmt-static.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\fmt-static.7.0.3.4\build\fmt-static.targets'))" />
-  </Target>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

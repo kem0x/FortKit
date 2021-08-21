@@ -4,14 +4,14 @@
 
 namespace Dumper
 {
-	void DumpClass(UClass* Class)
+	static void DumpClass(UClass* Class)
 	{
-		auto fileType = L".h";
-		auto fileName = L"DUMP\\" + Class->GetName() + fileType;
+		auto fileType = ".h";
+		auto fileName = "DUMP\\" + Class->GetCPPName() + fileType;
 
-		std::wofstream file(fileName);
+		std::ofstream file(fileName);
 
-		file << L"struct " << Class->GetName() << " \n{\n";
+		file << "struct " << Class->GetCPPName() << " \n{\n";
 
 		if (!Class->ChildProperties && Util::IsBadReadPtr(Class->ChildProperties)) return;
 
@@ -19,28 +19,22 @@ namespace Dumper
 
 		if (!next && Util::IsBadReadPtr(next)) return;
 
-		//MessageBoxW(nullptr, Class->ChildProperties->GetName().c_str(), L"k", MB_OK);
-
-		auto firstPropertyName = reinterpret_cast<FField*>(Class->ChildProperties)->GetName();
-
-		file << firstPropertyName << L"\n";
+		file << tfm::format("%s		%s; //0x%d (0x%d)\n", next->GetTypeName(), next->GetName(), reinterpret_cast<FProperty*>(next)->Offset_Internal, reinterpret_cast<FProperty*>(next)->ElementSize);
 
 		while (next)
 		{
-			file << next->GetTypeName() << L" " << next->GetName() << L";\n";
+			file << tfm::format("%s		%s; //0x%d (0x%d)\n", next->GetTypeName(), next->GetName(), reinterpret_cast<FProperty*>(next)->Offset_Internal, reinterpret_cast<FProperty*>(next)->ElementSize);
 
 			next = next->Next;
-
-			//fmt::format("{:d}", "I am not a number");
 		}
 
-		file << L"};";
+		file << "};";
 	}
 
-	void DumpClasses()
+	static void DumpClasses()
 	{
 		printf("[=] Dumping classes.\n");
-		std::wofstream log(L"GObjects.log");
+		std::ofstream log("GObjects.log");
 
 		for (auto i = 0x0; i < GObjects->NumElements; ++i)
 		{
@@ -50,16 +44,35 @@ namespace Dumper
 				continue;
 			}
 
-			if (object->IsA(UClass::StaticClass()))
+			if (object->IsA<UClass>())
 			{
-				std::wstring objectName = object->GetFullName();
-				std::wstring item = L"\n[" + std::to_wstring(i) + L"] Object:[" + objectName + L"]\n";
+				std::string objectName = object->GetFullName();
+				std::string item = "\n[" + std::to_string(i) + "] Object:[" + objectName + "]\n";
 				log << item;
 
-				DumpClass(reinterpret_cast<UClass*>(object));
+				DumpClass((UClass*)object);
 			}
 		}
 
 		printf("[+] Dumping classes is done!\n");
+	}
+
+
+	void DumpGObjects()
+	{
+		std::ofstream log("GObjects.log");
+
+		for (auto i = 0x0; i < GObjects->NumElements; ++i)
+		{
+			auto object = GObjects->GetByIndex(i);
+			if (object == nullptr)
+			{
+				continue;
+			}
+			std::string className = object->Class->GetFullName();
+			std::string objectName = object->GetFullName();
+			std::string item = "\n[" + std::to_string(i) + "] Object:[" + objectName + "] Class:[" + className + "]\n";
+			log << item;
+		}
 	}
 }
