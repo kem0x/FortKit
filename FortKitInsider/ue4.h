@@ -290,7 +290,7 @@ public:
 		return (this && !Util::IsBadReadPtr((void*)this));
 	}
 
-	template <typename T> bool IsA() const;
+	template <typename T> bool IsA();
 
 	template <typename Base> Base Cast() const
 	{
@@ -397,6 +397,40 @@ public:
 	FProperty* NextRef;
 	FProperty* DestructorLinkNext;
 	FProperty* PostConstructLinkNext;
+};
+
+class FBoolProperty : public FProperty
+{
+public:
+	uint8_t FieldSize;
+	uint8_t ByteOffset;
+	uint8_t ByteMask;
+	uint8_t FieldMask;
+
+	FORCEINLINE bool IsNativeBool() const
+	{
+		return FieldMask == 0xff;
+	}
+};
+
+class FObjectPropertyBase : public FProperty
+{
+public:
+
+	UClass* PropertyClass;
+};
+
+class FArrayProperty : public FProperty
+{
+public:
+	FProperty* Inner;
+	EArrayPropertyFlags ArrayFlags;
+};
+
+class FStructProperty : public FProperty
+{
+public:
+	class UStruct* Struct;
 };
 
 class UField : public UObject

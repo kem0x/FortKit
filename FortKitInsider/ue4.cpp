@@ -1,6 +1,6 @@
 #include "ue4.h"
 
-template <typename T> bool UObject::IsA() const
+template <typename T> bool UObject::IsA()
 {
 	auto cmp = T::StaticClass();
 	if (!cmp->IsValid())

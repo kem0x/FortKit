@@ -238,3 +238,9 @@ enum EFunctionFlags : uint32_t
 
 	FUNC_AllFlags = 0xFFFFFFFF,
 };
+
+enum class EArrayPropertyFlags
+{
+	None,
+	UsesMemoryImageAllocator
+};

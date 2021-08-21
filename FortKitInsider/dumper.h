@@ -1,4 +1,5 @@
 #pragma once
+#include "generic.h"
 #include "ue4.h"
 #include "util.h"
 
@@ -6,26 +7,42 @@ namespace Dumper
 {
 	static void DumpClass(UClass* Class)
 	{
+		if (!Class->ChildProperties && Util::IsBadReadPtr(Class->ChildProperties)) return;
+
 		auto fileType = ".h";
 		auto fileName = "DUMP\\" + Class->GetCPPName() + fileType;
 
 		std::ofstream file(fileName);
 
-		file << "struct " << Class->GetCPPName() << " \n{\n";
+		file << "struct " << Class->GetCPPName() << (Class->SuperStruct ? " : " + Class->SuperStruct->GetCPPName() : "") << "\n{ \n";
 
-		if (!Class->ChildProperties && Util::IsBadReadPtr(Class->ChildProperties)) return;
+		auto prop = (FProperty*)Class->ChildProperties;
 
-		auto next = Class->ChildProperties->Next;
+		auto offset = prop->Offset_Internal + prop->ElementSize * prop->ArrayDim;
 
-		if (!next && Util::IsBadReadPtr(next)) return;
-
-		file << tfm::format("%s		%s; //0x%d (0x%d)\n", next->GetTypeName(), next->GetName(), reinterpret_cast<FProperty*>(next)->Offset_Internal, reinterpret_cast<FProperty*>(next)->ElementSize);
-
-		while (next)
+		//NOT CORRECT
+		if (prop->ElementSize > 0x0)
 		{
-			file << tfm::format("%s		%s; //0x%d (0x%d)\n", next->GetTypeName(), next->GetName(), reinterpret_cast<FProperty*>(next)->Offset_Internal, reinterpret_cast<FProperty*>(next)->ElementSize);
+			file << tfm::format("	unsigned char		unreflected_%x[0x%x];\n", prop->ElementSize, prop->ElementSize);
+		}
 
-			next = next->Next;
+		file << tfm::format("	%s		%s; //0x%x (0x%x)\n", Generic::StringifyPropType(prop), Class->ChildProperties->GetName(), prop->Offset_Internal, prop->ElementSize);
+
+		prop = (FProperty*)Class->ChildProperties->Next;
+
+		if (!prop && Util::IsBadReadPtr(prop)) return;
+
+		while (prop)
+		{
+			if (offset < prop->Offset_Internal)
+			{
+				file << tfm::format("	unsigned char		unreflected_%x[0x%x]; //0x%x (0x%x)\n", prop->Offset_Internal, prop->Offset_Internal - offset, prop->Offset_Internal, prop->ElementSize);
+			}
+
+			file << tfm::format("	%s		%s; //0x%x (0x%x)\n", Generic::StringifyPropType(prop) + " " + prop->ClassPrivate->Name.ToString() + std::to_string(prop->ClassPrivate->Id), prop->GetName(), prop->Offset_Internal, prop->ElementSize);
+
+			offset = prop->Offset_Internal + prop->ElementSize * prop->ArrayDim;
+			prop = (FProperty*)prop->Next;
 		}
 
 		file << "};";
