@@ -48,6 +48,13 @@ public:
 	};
 };
 
+template <typename KeyType, typename ValueType> class TPair
+{
+public:
+	KeyType Key;
+	ValueType Value;
+};
+
 struct FString : private TArray<wchar_t>
 {
 	FString()
@@ -445,6 +452,57 @@ public:
 		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Field");
 		return c;
 	}
+};
+
+class UEnum : public UField
+{
+	enum class ECppForm
+	{
+		Regular, Namespaced, EnumClass
+	};
+
+public:
+	FString CppType;
+	TArray<TPair<FName, int64_t>> Names;
+	ECppForm CppForm;
+};
+
+class FEnumProperty : public FProperty
+{
+public:
+	FProperty* UnderlyingProp;
+	UEnum* Enum;
+};
+
+class FByteProperty : public FProperty
+{
+public:
+	UEnum* Enum;
+};
+
+class FInterfaceProperty : public FProperty
+{
+public:
+	UClass* InterfaceClass;
+};
+
+class FMapProperty : public FProperty
+{
+public:
+	FProperty* KeyProp;
+	FProperty* ValueProp;
+};
+
+class FSetProperty : public FProperty
+{
+public:
+	FProperty* ElementProp;
+};
+
+class FSoftClassProperty : public FProperty
+{
+public:
+	UClass* MetaClass;
 };
 
 class UStruct : public UField

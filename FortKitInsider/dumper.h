@@ -5,26 +5,21 @@
 
 namespace Dumper
 {
-	static void DumpClass(UClass* Class)
+	static auto GeneratePadding(FProperty* prop, const int& size, const int& offset, const std::string& comment, const std::string& name = "unreflected")
 	{
-		if (!Class->ChildProperties && Util::IsBadReadPtr(Class->ChildProperties)) return;
+		return tfm::format("	unsigned char		%s_%x[0x%x]; //0x%x (0x%x) %x\n", name, offset, size, offset, size, comment);
+	}
 
-		auto fileType = ".h";
-		auto fileName = "DUMP\\" + Class->GetCPPName() + fileType;
-
-		std::ofstream file(fileName);
-
-		file << "struct " << Class->GetCPPName() << (Class->SuperStruct ? " : " + Class->SuperStruct->GetCPPName() : "") << "\n{ \n";
-
+	static void GenerateFields(std::ofstream& file, UClass* Class)
+	{
 		auto prop = (FProperty*)Class->ChildProperties;
 
-		auto offset = prop->Offset_Internal + prop->ElementSize * prop->ArrayDim;
-
-		//NOT CORRECT
-		if (prop->ElementSize > 0x0)
+		if (Class->PropertiesSize > 0x0 && !Class->ChildProperties && Util::IsBadReadPtr(Class->ChildProperties))
 		{
-			file << tfm::format("	unsigned char		unreflected_%x[0x%x];\n", prop->ElementSize, prop->ElementSize);
+			return (void)(file << tfm::format("	unsigned char		%s_%x[0x%x];\n", "unreflected", Class->PropertiesSize, Class->PropertiesSize));
 		}
+
+		auto offset = prop->Offset_Internal + prop->ElementSize * prop->ArrayDim;
 
 		file << tfm::format("	%s		%s; //0x%x (0x%x)\n", Generic::StringifyPropType(prop), Class->ChildProperties->GetName(), prop->Offset_Internal, prop->ElementSize);
 
@@ -36,14 +31,55 @@ namespace Dumper
 		{
 			if (offset < prop->Offset_Internal)
 			{
-				file << tfm::format("	unsigned char		unreflected_%x[0x%x]; //0x%x (0x%x)\n", prop->Offset_Internal, prop->Offset_Internal - offset, prop->Offset_Internal, prop->ElementSize);
+				file << GeneratePadding(prop, prop->Offset_Internal - offset, offset, "");
 			}
 
-			file << tfm::format("	%s		%s; //0x%x (0x%x)\n", Generic::StringifyPropType(prop) + " " + prop->ClassPrivate->Name.ToString() + std::to_string(prop->ClassPrivate->Id), prop->GetName(), prop->Offset_Internal, prop->ElementSize);
+			std::string comment;
+			auto propName = prop->GetName();
+			auto cppType = Generic::StringifyPropType(prop);
+
+			if (!cppType.empty())
+			{
+				if (prop->ArrayDim > 1)
+				{
+					propName += tfm::format("[0x%x]", prop->ArrayDim);
+					comment += " (ARRAY) ";
+				}
+				file << tfm::format("	%s		%s; //0x%x (0x%x) %s\n", cppType, propName, prop->Offset_Internal, prop->ElementSize, comment);
+			}
+			else
+			{
+				//those are ignored on purpose
+				if (prop->ClassPrivate->Id != MULTICASTS_INLINE_DELEGATE_PROP_ID && prop->ClassPrivate->Id != DELEGATE_PROP_ID)
+				{
+					comment += "(UNHANDLED PROPERTY TYPE: " + prop->ClassPrivate->Name.ToString() + " UID: " + std::to_string(prop->ClassPrivate->Id) + ")";
+				}
+
+				file << GeneratePadding(prop, prop->ElementSize, prop->Offset_Internal, comment, propName);
+			}
 
 			offset = prop->Offset_Internal + prop->ElementSize * prop->ArrayDim;
 			prop = (FProperty*)prop->Next;
 		}
+
+		if (offset < Class->PropertiesSize)
+		{
+			file << tfm::format("	unsigned char		%s_%x[0x%x]; //0x%x (0x%x)\n", "padding", offset, Class->PropertiesSize - offset, offset, Class->PropertiesSize - offset);
+		}
+	}
+
+	static void DumpClass(UClass* Class)
+	{
+		if (!Class->ChildProperties && Util::IsBadReadPtr(Class->ChildProperties) && Class->PropertiesSize == 0x0) return;
+
+		auto fileType = ".h";
+		auto fileName = "DUMP\\" + Class->GetCPPName() + fileType;
+
+		std::ofstream file(fileName);
+
+		file << "struct " << Class->GetCPPName() << (Class->SuperStruct ? " : " + Class->SuperStruct->GetCPPName() : "") << "\n{ \n";
+
+		GenerateFields(file, Class);
 
 		file << "};";
 	}
