@@ -50,9 +50,9 @@ namespace Dumper
 			else
 			{
 				//those are ignored on purpose
-				if (prop->ClassPrivate->Id != MULTICASTS_INLINE_DELEGATE_PROP_ID && prop->ClassPrivate->Id != DELEGATE_PROP_ID)
+				if (prop->ClassPrivate->Id != FFieldClassID::MulticastInlineDelegate && prop->ClassPrivate->Id != FFieldClassID::Delegate)
 				{
-					comment += "(UNHANDLED PROPERTY TYPE: " + prop->ClassPrivate->Name.ToString() + " UID: " + std::to_string(prop->ClassPrivate->Id) + ")";
+					comment += "(UNHANDLED PROPERTY TYPE: " + prop->ClassPrivate->Name.ToString() + " UID: " + std::to_string((int)prop->ClassPrivate->Id) + ")";
 				}
 
 				file << GeneratePadding(prop, prop->ElementSize, prop->Offset_Internal, comment, propName);

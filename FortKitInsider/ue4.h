@@ -4,7 +4,8 @@
 #include "util.h"
 
 
-template <class T> struct TArray
+template <class T>
+struct TArray
 {
 	friend struct FString;
 
@@ -20,27 +21,32 @@ public:
 		Count = Max = 0;
 	};
 
-	int Num() const
+	int
+	Num() const
 	{
 		return Count;
 	};
 
-	T& operator[](int i)
+	T&
+	operator[](int i)
 	{
 		return Data[i];
 	};
 
-	const T& operator[](int i) const
+	const T&
+	operator[](int i) const
 	{
 		return Data[i];
 	};
 
-	bool IsValidIndex(int i) const
+	bool
+	IsValidIndex(int i) const
 	{
 		return i < Num();
 	}
 
-	void Add(T InputData)
+	void
+	Add(T InputData)
 	{
 		Data = static_cast<T*>(realloc(Data, sizeof(T) * (Count + 1)));
 		Data[Count++] = InputData;
@@ -48,7 +54,8 @@ public:
 	};
 };
 
-template <typename KeyType, typename ValueType> class TPair
+template <typename KeyType, typename ValueType>
+class TPair
 {
 public:
 	KeyType Key;
@@ -71,17 +78,20 @@ struct FString : private TArray<wchar_t>
 		}
 	}
 
-	bool IsValid() const
+	bool
+	IsValid() const
 	{
 		return Data != nullptr;
 	}
 
-	const wchar_t* ToWString() const
+	const wchar_t*
+	ToWString() const
 	{
 		return Data;
 	}
 
-	std::string ToString() const
+	std::string
+	ToString() const
 	{
 		auto length = std::wcslen(Data);
 
@@ -93,7 +103,8 @@ struct FString : private TArray<wchar_t>
 	}
 };
 
-inline void (*FNameToString)(void* _this, FString& out);
+inline void
+(*FNameToString)(void* _this, FString& out);
 
 struct FName
 {
@@ -102,13 +113,15 @@ struct FName
 
 	FName() = default;
 
-	explicit FName(int64_t name)
+	explicit
+	FName(int64_t name)
 	{
 		DisplayIndex = (name & 0xFFFFFFFF00000000LL) >> 32;
 		ComparisonIndex = (name & 0xFFFFFFFFLL);
 	};
 
-	auto ToString()
+	auto
+	ToString()
 	{
 		FString temp;
 		FNameToString(this, temp);
@@ -119,22 +132,31 @@ struct FName
 	}
 };
 
-template <class TEnum> class TEnumAsByte
+template <class TEnum>
+class TEnumAsByte
 {
 public:
 	TEnumAsByte()
 	{
 	}
 
-	TEnumAsByte(TEnum _value) : value(static_cast<uint8_t>(_value))
+	TEnumAsByte(TEnum _value)
+		:
+		value(static_cast<uint8_t>(_value))
 	{
 	}
 
-	explicit TEnumAsByte(int32_t _value) : value(static_cast<uint8_t>(_value))
+	explicit
+	TEnumAsByte(int32_t _value)
+		:
+		value(static_cast<uint8_t>(_value))
 	{
 	}
 
-	explicit TEnumAsByte(uint8_t _value) : value(_value)
+	explicit
+	TEnumAsByte(uint8_t _value)
+		:
+		value(_value)
 	{
 	}
 
@@ -143,7 +165,8 @@ public:
 		return static_cast<TEnum>(value);
 	}
 
-	TEnum GetValue() const
+	TEnum
+	GetValue() const
 	{
 		return static_cast<TEnum>(value);
 	}
@@ -175,7 +198,8 @@ struct GlobalObjects
 	int32_t MaxElements;
 	int32_t NumElements;
 
-	void NumChunks(int* start, int* end) const
+	void
+	NumChunks(int* start, int* end) const
 	{
 		int cStart = 0, cEnd = 0;
 
@@ -208,7 +232,8 @@ struct GlobalObjects
 		*end = cEnd;
 	}
 
-	UObject* GetByIndex(int32_t index) const
+	UObject*
+	GetByIndex(int32_t index) const
 	{
 		int cStart = 0, cEnd = 0;
 		int chunkIndex, chunkSize = 0xFFFF, chunkPos;
@@ -255,7 +280,9 @@ public:
 	FName NamePrivate;
 	UObject* Outer;
 
-	template <typename T> static T FindObject(char const* name, bool ends_with = false, int toSkip = 0)
+	template <typename T>
+	static T
+	FindObject(char const* name, bool ends_with = false, int toSkip = 0)
 	{
 		for (auto i = 0x0; i < GObjects->NumElements; ++i)
 		{
@@ -292,26 +319,34 @@ public:
 		return nullptr;
 	}
 
-	auto IsValid() const -> bool
+	auto
+	IsValid() const -> bool
 	{
 		return (this && !Util::IsBadReadPtr((void*)this));
 	}
 
-	template <typename T> bool IsA();
+	template <typename T>
+	bool
+	IsA();
 
-	template <typename Base> Base Cast() const
+	template <typename Base>
+	Base
+	Cast() const
 	{
 		return Base(this);
 	}
 
-	std::string GetCPPName();
+	std::string
+	GetCPPName();
 
-	auto GetName()
+	auto
+	GetName()
 	{
 		return NamePrivate.ToString();
 	}
 
-	std::string GetFullName()
+	std::string
+	GetFullName()
 	{
 		std::string temp;
 
@@ -324,7 +359,8 @@ public:
 		return temp;
 	}
 
-	static UClass* StaticClass()
+	static UClass*
+	StaticClass()
 	{
 		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Object");
 		return c;
@@ -345,11 +381,45 @@ public:
 	bool bIsUObject;
 };
 
+enum class FFieldClassID : uint64_t 
+{
+	Int8 = 1llu << 1,
+	Byte = 1llu << 6,
+	Int = 1llu << 7,
+	Float = 1llu << 8,
+	UInt64 = 1llu << 9,
+	Class = 1llu << 10,
+	UInt32 = 1llu << 11,
+	Interface = 1llu << 12,
+	Name = 1llu << 13,
+	String = 1llu << 14,
+	Object = 1llu << 16,
+	Bool = 1llu << 17,
+	UInt16 = 1llu << 18,
+	Struct = 1llu << 20,
+	Array = 1llu << 21,
+	Int64 = 1llu << 22,
+	Delegate = 1llu << 23,
+	SoftObject = 1llu << 27,
+	LazyObject = 1llu << 28,
+	WeakObject = 1llu << 29,
+	Text = 1llu << 30,
+	Int16 = 1llu << 31,
+	Double = 1llu << 32,
+	SoftClass = 1llu << 33,
+	Map = 1llu << 46,
+	Set = 1llu << 47,
+	Enum = 1llu << 48,
+	MulticastInlineDelegate = 1llu << 50,
+	MulticastSparseDelegate = 1llu << 51
+};
+
 class FFieldClass
 {
 public:
+
 	FName Name;
-	uint64_t Id;
+	FFieldClassID Id;
 	uint64_t CastFlags;
 	EClassFlags ClassFlags;
 	FFieldClass* SuperClass;
@@ -366,17 +436,20 @@ public:
 	FName NamePrivate;
 	EObjectFlags FlagsPrivate;
 
-	std::string GetName()
+	std::string
+	GetName()
 	{
 		return NamePrivate.ToString();
 	}
 
-	std::string GetTypeName() const
+	std::string
+	GetTypeName() const
 	{
 		return ClassPrivate->Name.ToString();
 	}
 
-	std::string GetFullName()
+	std::string
+	GetFullName()
 	{
 		std::string temp;
 
@@ -414,7 +487,8 @@ public:
 	uint8_t ByteMask;
 	uint8_t FieldMask;
 
-	FORCEINLINE bool IsNativeBool() const
+	FORCEINLINE bool
+	IsNativeBool() const
 	{
 		return FieldMask == 0xff;
 	}
@@ -447,7 +521,8 @@ public:
 	void* padding;
 	void* padding2;
 
-	static UClass* StaticClass()
+	static UClass*
+	StaticClass()
 	{
 		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Field");
 		return c;
@@ -458,7 +533,9 @@ class UEnum : public UField
 {
 	enum class ECppForm
 	{
-		Regular, Namespaced, EnumClass
+		Regular,
+		Namespaced,
+		EnumClass
 	};
 
 public:
@@ -521,7 +598,8 @@ public:
 	TArray<UObject*> ScriptAndPropertyObjectReferences;
 	void /* FUnresolvedScriptPropertiesArray */ * UnresolvedScriptProperties;
 
-	static UClass* StaticClass()
+	static UClass*
+	StaticClass()
 	{
 		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Struct");
 		return c;
@@ -531,7 +609,8 @@ public:
 class UClass : public UStruct
 {
 public:
-	static UClass* StaticClass()
+	static UClass*
+	StaticClass()
 	{
 		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Class");
 		return c;
@@ -552,7 +631,8 @@ public:
 	int32_t EventGraphCallOffset;
 	void* Func;
 
-	static UClass* StaticClass()
+	static UClass*
+	StaticClass()
 	{
 		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Function");
 		return c;
