@@ -9,6 +9,7 @@ namespace Util
 
 		FILE* pFile;
 		freopen_s(&pFile, "CONOUT$", "w", stdout);
+		//freopen_s(&pFile, "kkkk.log", "w", stdout);
 	}
 
 	static bool IsBadReadPtr(void* p)

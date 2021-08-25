@@ -1,19 +1,76 @@
 #pragma once
 #include "framework.h"
 
+enum ASM : DWORD
+{
+	JMP_REL8 = 0xEB,
+	CALL = 0xE8,
+	LEA = 0x8D,
+	CDQ = 0x99,
+	CMOVL = 0x4C,
+	CMOVS = 0x48,
+	INT3 = 0xCC,
+	RETN = 0xC3,
+	SKIP
+};
+
 enum ELifetimeCondition
 {
-	COND_None = 0, COND_InitialOnly = 1, COND_OwnerOnly = 2, COND_SkipOwner = 3, COND_SimulatedOnly = 4, COND_AutonomousOnly = 5, COND_SimulatedOrPhysics = 6, COND_InitialOrOwner = 7, COND_Custom = 8, COND_ReplayOrOwner = 9, COND_ReplayOnly = 10, COND_SimulatedOnlyNoReplay = 11, COND_SimulatedOrPhysicsNoReplay = 12, COND_SkipReplay = 13, COND_Never = 15, COND_Max = 16,
+	COND_None = 0,
+	COND_InitialOnly = 1,
+	COND_OwnerOnly = 2,
+	COND_SkipOwner = 3,
+	COND_SimulatedOnly = 4,
+	COND_AutonomousOnly = 5,
+	COND_SimulatedOrPhysics = 6,
+	COND_InitialOrOwner = 7,
+	COND_Custom = 8,
+	COND_ReplayOrOwner = 9,
+	COND_ReplayOnly = 10,
+	COND_SimulatedOnlyNoReplay = 11,
+	COND_SimulatedOrPhysicsNoReplay = 12,
+	COND_SkipReplay = 13,
+	COND_Never = 15,
+	COND_Max = 16,
 };
 
 enum EObjectFlags
 {
-	RF_NoFlags = 0x00000000, RF_Public = 0x00000001, RF_Standalone = 0x00000002, RF_MarkAsNative = 0x00000004, RF_Transactional = 0x00000008, RF_ClassDefaultObject = 0x00000010, RF_ArchetypeObject = 0x00000020, RF_Transient = 0x00000040, RF_MarkAsRootSet = 0x00000080, RF_TagGarbageTemp = 0x00000100, RF_NeedInitialization = 0x00000200, RF_NeedLoad = 0x00000400, RF_KeepForCooker = 0x00000800, RF_NeedPostLoad = 0x00001000, RF_NeedPostLoadSubobjects = 0x00002000, RF_NewerVersionExists = 0x00004000, RF_BeginDestroyed = 0x00008000, RF_FinishDestroyed = 0x00010000, RF_BeingRegenerated = 0x00020000, RF_DefaultSubObject = 0x00040000, RF_WasLoaded = 0x00080000, RF_TextExportTransient = 0x00100000, RF_LoadCompleted = 0x00200000, RF_InheritableComponentTemplate = 0x00400000, RF_DuplicateTransient = 0x00800000, RF_StrongRefOnFrame = 0x01000000, RF_NonPIEDuplicateTransient = 0x02000000, RF_Dynamic = 0x04000000, RF_WillBeLoaded = 0x08000000,
+	RF_NoFlags = 0x00000000,
+	RF_Public = 0x00000001,
+	RF_Standalone = 0x00000002,
+	RF_MarkAsNative = 0x00000004,
+	RF_Transactional = 0x00000008,
+	RF_ClassDefaultObject = 0x00000010,
+	RF_ArchetypeObject = 0x00000020,
+	RF_Transient = 0x00000040,
+	RF_MarkAsRootSet = 0x00000080,
+	RF_TagGarbageTemp = 0x00000100,
+	RF_NeedInitialization = 0x00000200,
+	RF_NeedLoad = 0x00000400,
+	RF_KeepForCooker = 0x00000800,
+	RF_NeedPostLoad = 0x00001000,
+	RF_NeedPostLoadSubobjects = 0x00002000,
+	RF_NewerVersionExists = 0x00004000,
+	RF_BeginDestroyed = 0x00008000,
+	RF_FinishDestroyed = 0x00010000,
+	RF_BeingRegenerated = 0x00020000,
+	RF_DefaultSubObject = 0x00040000,
+	RF_WasLoaded = 0x00080000,
+	RF_TextExportTransient = 0x00100000,
+	RF_LoadCompleted = 0x00200000,
+	RF_InheritableComponentTemplate = 0x00400000,
+	RF_DuplicateTransient = 0x00800000,
+	RF_StrongRefOnFrame = 0x01000000,
+	RF_NonPIEDuplicateTransient = 0x02000000,
+	RF_Dynamic = 0x04000000,
+	RF_WillBeLoaded = 0x08000000,
 };
 
 enum EPropertyFlags : uint64_t
 {
-	CPF_None = 0, CPF_Edit = 0x0000000000000001,
+	CPF_None = 0,
+	CPF_Edit = 0x0000000000000001,
 	///< Property is user-settable in the editor.
 	CPF_ConstParm = 0x0000000000000002,
 	///< This is a constant function parameter
@@ -202,39 +259,68 @@ enum EFunctionFlags : uint32_t
 {
 	// Function flags.
 	FUNC_None = 0x00000000,
-
-	FUNC_Final = 0x00000001,	// Function is final (prebindable, non-overridable function).
-	FUNC_RequiredAPI = 0x00000002,	// Indicates this function is DLL exported/imported.
-	FUNC_BlueprintAuthorityOnly = 0x00000004,   // Function will only run if the object has network authority
-	FUNC_BlueprintCosmetic = 0x00000008,   // Function is cosmetic in nature and should not be invoked on dedicated servers
+	FUNC_Final = 0x00000001,
+	// Function is final (prebindable, non-overridable function).
+	FUNC_RequiredAPI = 0x00000002,
+	// Indicates this function is DLL exported/imported.
+	FUNC_BlueprintAuthorityOnly = 0x00000004,
+	// Function will only run if the object has network authority
+	FUNC_BlueprintCosmetic = 0x00000008,
+	// Function is cosmetic in nature and should not be invoked on dedicated servers
 	// FUNC_				= 0x00000010,   // unused.
 	// FUNC_				= 0x00000020,   // unused.
-	FUNC_Net = 0x00000040,   // Function is network-replicated.
-	FUNC_NetReliable = 0x00000080,   // Function should be sent reliably on the network.
-	FUNC_NetRequest = 0x00000100,	// Function is sent to a net service
-	FUNC_Exec = 0x00000200,	// Executable from command line.
-	FUNC_Native = 0x00000400,	// Native function.
-	FUNC_Event = 0x00000800,   // Event function.
-	FUNC_NetResponse = 0x00001000,   // Function response from a net service
-	FUNC_Static = 0x00002000,   // Static function.
-	FUNC_NetMulticast = 0x00004000,	// Function is networked multicast Server -> All Clients
-	FUNC_UbergraphFunction = 0x00008000,   // Function is used as the merge 'ubergraph' for a blueprint, only assigned when using the persistent 'ubergraph' frame
-	FUNC_MulticastDelegate = 0x00010000,	// Function is a multi-cast delegate signature (also requires FUNC_Delegate to be set!)
-	FUNC_Public = 0x00020000,	// Function is accessible in all classes (if overridden, parameters must remain unchanged).
-	FUNC_Private = 0x00040000,	// Function is accessible only in the class it is defined in (cannot be overridden, but function name may be reused in subclasses.  IOW: if overridden, parameters don't need to match, and Super.Func() cannot be accessed since it's private.)
-	FUNC_Protected = 0x00080000,	// Function is accessible only in the class it is defined in and subclasses (if overridden, parameters much remain unchanged).
-	FUNC_Delegate = 0x00100000,	// Function is delegate signature (either single-cast or multi-cast, depending on whether FUNC_MulticastDelegate is set.)
-	FUNC_NetServer = 0x00200000,	// Function is executed on servers (set by replication code if passes check)
-	FUNC_HasOutParms = 0x00400000,	// function has out (pass by reference) parameters
-	FUNC_HasDefaults = 0x00800000,	// function has structs that contain defaults
-	FUNC_NetClient = 0x01000000,	// function is executed on clients
-	FUNC_DLLImport = 0x02000000,	// function is imported from a DLL
-	FUNC_BlueprintCallable = 0x04000000,	// function can be called from blueprint code
-	FUNC_BlueprintEvent = 0x08000000,	// function can be overridden/implemented from a blueprint
-	FUNC_BlueprintPure = 0x10000000,	// function can be called from blueprint code, and is also pure (produces no side effects). If you set this, you should set FUNC_BlueprintCallable as well.
-	FUNC_EditorOnly = 0x20000000,	// function can only be called from an editor scrippt.
-	FUNC_Const = 0x40000000,	// function can be called from blueprint code, and only reads state (never writes state)
-	FUNC_NetValidate = 0x80000000,	// function must supply a _Validate implementation
+	FUNC_Net = 0x00000040,
+	// Function is network-replicated.
+	FUNC_NetReliable = 0x00000080,
+	// Function should be sent reliably on the network.
+	FUNC_NetRequest = 0x00000100,
+	// Function is sent to a net service
+	FUNC_Exec = 0x00000200,
+	// Executable from command line.
+	FUNC_Native = 0x00000400,
+	// Native function.
+	FUNC_Event = 0x00000800,
+	// Event function.
+	FUNC_NetResponse = 0x00001000,
+	// Function response from a net service
+	FUNC_Static = 0x00002000,
+	// Static function.
+	FUNC_NetMulticast = 0x00004000,
+	// Function is networked multicast Server -> All Clients
+	FUNC_UbergraphFunction = 0x00008000,
+	// Function is used as the merge 'ubergraph' for a blueprint, only assigned when using the persistent 'ubergraph' frame
+	FUNC_MulticastDelegate = 0x00010000,
+	// Function is a multi-cast delegate signature (also requires FUNC_Delegate to be set!)
+	FUNC_Public = 0x00020000,
+	// Function is accessible in all classes (if overridden, parameters must remain unchanged).
+	FUNC_Private = 0x00040000,
+	// Function is accessible only in the class it is defined in (cannot be overridden, but function name may be reused in subclasses.  IOW: if overridden, parameters don't need to match, and Super.Func() cannot be accessed since it's private.)
+	FUNC_Protected = 0x00080000,
+	// Function is accessible only in the class it is defined in and subclasses (if overridden, parameters much remain unchanged).
+	FUNC_Delegate = 0x00100000,
+	// Function is delegate signature (either single-cast or multi-cast, depending on whether FUNC_MulticastDelegate is set.)
+	FUNC_NetServer = 0x00200000,
+	// Function is executed on servers (set by replication code if passes check)
+	FUNC_HasOutParms = 0x00400000,
+	// function has out (pass by reference) parameters
+	FUNC_HasDefaults = 0x00800000,
+	// function has structs that contain defaults
+	FUNC_NetClient = 0x01000000,
+	// function is executed on clients
+	FUNC_DLLImport = 0x02000000,
+	// function is imported from a DLL
+	FUNC_BlueprintCallable = 0x04000000,
+	// function can be called from blueprint code
+	FUNC_BlueprintEvent = 0x08000000,
+	// function can be overridden/implemented from a blueprint
+	FUNC_BlueprintPure = 0x10000000,
+	// function can be called from blueprint code, and is also pure (produces no side effects). If you set this, you should set FUNC_BlueprintCallable as well.
+	FUNC_EditorOnly = 0x20000000,
+	// function can only be called from an editor scrippt.
+	FUNC_Const = 0x40000000,
+	// function can be called from blueprint code, and only reads state (never writes state)
+	FUNC_NetValidate = 0x80000000,
+	// function must supply a _Validate implementation
 
 	FUNC_AllFlags = 0xFFFFFFFF,
 };

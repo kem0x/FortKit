@@ -1,4 +1,5 @@
 #pragma once
+#include "enums.h"
 
 namespace Memory
 {
@@ -29,7 +30,8 @@ namespace Memory
 				rdataSection = section;
 			}
 
-			if (textSection && rdataSection) break;
+			if (textSection && rdataSection)
+				break;
 		}
 
 		auto textStart = base_address + textSection->VirtualAddress;
@@ -40,21 +42,24 @@ namespace Memory
 		const auto scanBytes = reinterpret_cast<std::uint8_t*>(textStart);
 
 		//scan only text section
-		for (auto i = 0; i < textSection->Misc.VirtualSize; i++)
+		for (DWORD i = 0x0; i < textSection->Misc.VirtualSize; i++)
 		{
-			if (scanBytes[i] == 0x4C && scanBytes[i + 1] == 0x8D) //LEA
+			if (&scanBytes[i])
 			{
-				auto stringAdd = reinterpret_cast<uintptr_t>(&scanBytes[i]);
-				stringAdd = stringAdd + 7 + *reinterpret_cast<int32_t*>(stringAdd + 3);
-
-				//check if the pointer is actually a valid string by checking if it's inside the rdata section
-				if (stringAdd > rdataStart && stringAdd < rdataEnd)
+				if ((scanBytes[i] == ASM::CMOVL || scanBytes[i] == ASM::CMOVS) && scanBytes[i + 1] == ASM::LEA)
 				{
-					std::wstring lea((const wchar_t*)stringAdd);
+					auto stringAdd = reinterpret_cast<uintptr_t>(&scanBytes[i]);
+					stringAdd = stringAdd + 7 + *reinterpret_cast<int32_t*>(stringAdd + 3);
 
-					if (lea == string)
+					//check if the pointer is actually a valid string by checking if it's inside the rdata section
+					if (stringAdd > rdataStart && stringAdd < rdataEnd)
 					{
-						return &scanBytes[i];
+						std::wstring lea((wchar_t*)stringAdd);
+
+						if (lea == string)
+						{
+							return &scanBytes[i];
+						}
 					}
 				}
 			}
@@ -63,7 +68,7 @@ namespace Memory
 		return nullptr;
 	}
 
-	static void* FindFunctionByString(const std::wstring& string)
+	static void* FindByString(const std::wstring& string, std::vector<int> opcodesToFind = {}, bool bRelative = false, uint32_t offset = 0, bool forward = false)
 	{
 		auto ref = FindStringRef(string);
 
@@ -72,12 +77,30 @@ namespace Memory
 			const auto scanBytes = static_cast<std::uint8_t*>(ref);
 
 			//scan backwards till we hit a ret (and assume this is the function start)
-			//TODO: find a proper way to scan, i know this is a bad way
-			for (auto i = 0; i > -2048; i--)
+			for (auto i = 0; forward ? (i < 2048) : (i > -2048); forward ? i++ : i--)
 			{
-				if (scanBytes[i] == 0xCC || scanBytes[i] == 0xC3)
+				if (opcodesToFind.size() == 0)
 				{
-					return &scanBytes[i + 1];
+					if (scanBytes[i] == ASM::INT3 || scanBytes[i] == ASM::RETN)
+					{
+						return &scanBytes[i + 1];
+					}
+				}
+				else
+				{
+					for (uint8_t byte : opcodesToFind)
+					{
+						if (scanBytes[i] == byte && byte != ASM::SKIP)
+						{
+							if (bRelative)
+							{
+								uintptr_t address = reinterpret_cast<uintptr_t>(&scanBytes[i]);
+								address = ((address + offset + 4) + *(int32_t*)(address + offset));
+								return (void*)address;
+							}
+							return &scanBytes[i];
+						}
+					}
 				}
 			}
 		}
@@ -99,7 +122,8 @@ namespace Memory
 				if (*current == '?')
 				{
 					++current;
-					if (*current == '?') ++current;
+					if (*current == '?')
+						++current;
 					bytes.push_back(-1);
 				}
 				else { bytes.push_back(strtoul(current, &current, 16)); }
