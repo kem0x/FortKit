@@ -1,6 +1,37 @@
 #include "ue4.h"
 
-template <typename T> bool UObject::IsA()
+UClass* UClass::StaticClass()
+{
+	static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Class");
+	return c;
+}
+
+UClass* UBlueprintGeneratedClass::StaticClass()
+{
+	static auto c = FindObject<UClass*>("Class /Script/Engine.BlueprintGeneratedClass");
+	return c;
+}
+
+UClass* UField::StaticClass()
+{
+	static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Field");
+	return c;
+}
+
+UClass* UStruct::StaticClass()
+{
+	static auto c = (UClass*)FindObject<UObject*>("Class /Script/CoreUObject.Struct");
+	return c;
+}
+
+UClass* UFunction::StaticClass()
+{
+	static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Function");
+	return c;
+}
+
+template <class T>
+bool UObject::IsA() const
 {
 	auto cmp = T::StaticClass();
 	if (!cmp->IsValid())
@@ -8,7 +39,25 @@ template <typename T> bool UObject::IsA()
 		return false;
 	}
 
-	for (auto super = this->Class; super->IsValid(); super = (UClass*)super->SuperStruct)
+	for (auto super = (UStruct*)this->Class; super->IsValid(); super = super->SuperStruct)
+	{
+		if (super == cmp)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UObject::IsA(UClass* cmp) const
+{
+	if (!cmp->IsValid())
+	{
+		return false;
+	}
+
+	for (auto super = (UStruct*)this->Class; super->IsValid(); super = super->SuperStruct)
 	{
 		if (super == cmp)
 		{
@@ -40,7 +89,7 @@ std::string UObject::GetCPPName()
 				ret += "I";
 				break;
 			}
-			
+
 			if (className == "Object")
 			{
 				ret += "U";

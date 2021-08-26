@@ -3,10 +3,12 @@
 
 #include <windows.h>
 #include <cstdint>
+#include <chrono>
 #include <vector>
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <algorithm>
 #include <fstream>
 #include <vector>
 #include "tinyformat.h"

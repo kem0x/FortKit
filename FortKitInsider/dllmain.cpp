@@ -1,4 +1,5 @@
 #include "consts.h"
+#include "core.h"
 #include "dumper.h"
 #include "framework.h"
 #include "memory.h"
@@ -6,6 +7,8 @@
 
 static void Main(HMODULE hModule)
 {
+	auto Start = std::chrono::steady_clock::now();
+
 	Util::SetupConsole();
 
 	auto StaticLoadObjectInternalAdd = Memory::FindByString(STATICLOADOBJECTINTERNAL_STRINGREF);
@@ -29,7 +32,7 @@ static void Main(HMODULE hModule)
 	GObjects = decltype(GObjects)(GObjectsAdd);
 
 
-	auto FNameToStringAdd = (uintptr_t)Memory::FindByString(FNAMETOSTRING_STRINGREF, {CALL}, true, 1);
+	auto FNameToStringAdd = Memory::FindByString(FNAMETOSTRING_STRINGREF, {CALL}, true, 1);
 	if (!FNameToStringAdd)
 	{
 		MessageBoxW(nullptr, L"Cannot find FNameToString.", L"Error", MB_OK);
@@ -39,7 +42,6 @@ static void Main(HMODULE hModule)
 	FNameToString = decltype(FNameToString)(FNameToStringAdd);
 
 
-	//GObjects->GetByIndex(0)->ProcessEventAddress()
 	auto ProcessEventAdd = Memory::FindByString(PROCESSEVENT_STRINGREF, {JMP_REL8}, true, 12, true);
 	if (!ProcessEventAdd)
 	{
@@ -47,10 +49,21 @@ static void Main(HMODULE hModule)
 		return;
 	}
 
-	Dumper::DumpClasses();
+	ProcessEventR = decltype(ProcessEventR)(ProcessEventAdd);
+
+	//Core::LoadAllClasses();
+
+	//auto peIndex = Core::GetVTableIndex(ProcessEventR);
+
+	auto End = std::chrono::steady_clock::now();
+
+	printf("[=] Init Time: %.02f ms\n", (End - Start).count() / 1000000.);
+
+
+	Dumper::Dump();
 	//Dumper::DumpGObjects();
 
-	//FreeLibraryAndExitThread(hModule, 0);
+	FreeLibraryAndExitThread(hModule, 0);
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)

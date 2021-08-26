@@ -95,6 +95,7 @@ struct FString : private TArray<wchar_t>
 	}
 };
 
+// FName::ToString
 inline void (*FNameToString)(void* _this, FString& out);
 
 struct FName
@@ -116,6 +117,16 @@ struct FName
 		FNameToString(this, temp);
 
 		std::string ret(temp.ToString());
+
+		return ret;
+	}
+
+	auto ToWString()
+	{
+		FString temp;
+		FNameToString(this, temp);
+
+		std::wstring ret(temp.ToWString());
 
 		return ret;
 	}
@@ -241,15 +252,16 @@ struct GlobalObjects
 
 inline struct GlobalObjects* GObjects;
 
-class UClass;
-
 struct FPointer
 {
 	uintptr_t Dummy;
 };
 
 // UObjectGlobals::StaticLoadObject_Internal
-static UObject* (*StaticLoadObject_Internal)(void* Class, void* Outer, const TCHAR* Name, const TCHAR* Filename, uint32_t LoadFlags, void* Sandbox, bool bAllowObjectReconciliation, void* InSerializeContext);
+inline UObject* (*StaticLoadObject_Internal)(void* Class, void* Outer, const TCHAR* Name, const TCHAR* Filename, uint32_t LoadFlags, void* Sandbox, bool bAllowObjectReconciliation, void* InSerializeContext);
+
+// UObject::ProcessEvent
+static void* (*ProcessEventR)(void*, void*, void*);
 
 class UObject
 {
@@ -257,17 +269,21 @@ public:
 	FPointer VTableObject;
 	DWORD ObjectFlags;
 	DWORD InternalIndex;
-	UClass* Class;
+	class UClass* Class;
 	FName NamePrivate;
 	UObject* Outer;
 
-	auto ProcessEventAddress()
+	auto GetVTableObject()
 	{
-		auto vtable = *reinterpret_cast<void***>(this);
-		return vtable[0x44];
+		return *reinterpret_cast<void***>(this);
 	}
 
-	template <typename T>
+	auto ProcessEvent(void* fn, void* params)
+	{
+		ProcessEventR(this, fn, params);
+	}
+
+	template <typename T = UObject*>
 	static T FindObject(char const* name, bool ends_with = false, int toSkip = 0)
 	{
 		for (auto i = 0x0; i < GObjects->NumElements; ++i)
@@ -307,17 +323,24 @@ public:
 
 	auto IsValid() const -> bool
 	{
-		return (this && !Util::IsBadReadPtr((void*)this));
+		return (!Util::IsBadReadPtr((void*)this));
 	}
 
-	template <typename T>
-	bool IsA();
+	static UObject* StaticLoadObjectEasy(UClass* inClass, const wchar_t* inName, UObject* inOuter = nullptr)
+	{
+		return StaticLoadObject_Internal(inClass, inOuter, inName, nullptr, 0, nullptr, false, nullptr);
+	}
+
+	template <class T>
+	bool IsA() const;
 
 	template <typename Base>
 	Base Cast() const
 	{
 		return Base(this);
 	}
+
+	bool IsA(UClass* cmp) const;
 
 	std::string GetCPPName();
 
@@ -339,7 +362,7 @@ public:
 		return temp;
 	}
 
-	static UClass* StaticClass()
+	static class UClass* StaticClass()
 	{
 		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Object");
 		return c;
@@ -467,6 +490,38 @@ public:
 	{
 		return FieldMask == 0xff;
 	}
+
+	bool IsBitfield() const { return !IsNativeBool(); }
+
+	static int GetBitPosition(uint8_t value)
+	{
+		int i4 = !(value & 0xf) << 2;
+		value >>= i4;
+
+		int i2 = !(value & 0x3) << 1;
+		value >>= i2;
+
+		int i1 = !(value & 0x1);
+
+		int i0 = (value >> i1) & 1 ? 0 : -8;
+
+		return i4 + i2 + i1 + i0;
+	}
+
+	std::pair<int, int> GetMissingBitsCount(FBoolProperty* other) const
+	{
+		if (other == nullptr)
+		{
+			return {GetBitPosition(ByteMask), -1};
+		}
+
+		if (Offset_Internal == other->Offset_Internal)
+		{
+			return {GetBitPosition(ByteMask) - GetBitPosition(other->ByteMask) - 1, -1};
+		}
+
+		return {std::numeric_limits<uint8_t>::digits - GetBitPosition(other->ByteMask) - 1, GetBitPosition(ByteMask)};
+	}
 };
 
 class FObjectPropertyBase : public FProperty
@@ -496,11 +551,7 @@ public:
 	void* padding;
 	void* padding2;
 
-	static UClass* StaticClass()
-	{
-		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Field");
-		return c;
-	}
+	static class UClass* StaticClass();
 };
 
 class UEnum : public UField
@@ -572,21 +623,7 @@ public:
 	TArray<UObject*> ScriptAndPropertyObjectReferences;
 	void /* FUnresolvedScriptPropertiesArray */ * UnresolvedScriptProperties;
 
-	static UClass* StaticClass()
-	{
-		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Struct");
-		return c;
-	}
-};
-
-class UClass : public UStruct
-{
-public:
-	static UClass* StaticClass()
-	{
-		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Class");
-		return c;
-	}
+	static class UClass* StaticClass();
 };
 
 class UFunction : public UStruct
@@ -603,9 +640,140 @@ public:
 	int32_t EventGraphCallOffset;
 	void* Func;
 
-	static UClass* StaticClass()
+	static class UClass* StaticClass();
+};
+
+
+class UClass : public UStruct
+{
+public:
+	void* ClassConstructor;
+
+	void* ClassVTableHelperCtorCaller;
+
+	void* ClassAddReferencedObjects;
+
+	mutable uint32_t ClassUnique : 31;
+
+	uint32_t bCooked : 1;
+
+	EClassFlags ClassFlags;
+
+	EClassCastFlags ClassCastFlags;
+
+	UClass* ClassWithin;
+
+	UObject* ClassGeneratedBy;
+
+	FName ClassConfigName;
+
+	struct FRepRecord
 	{
-		static auto c = FindObject<UClass*>("Class /Script/CoreUObject.Function");
-		return c;
-	}
+		FProperty* Property;
+		int32_t Index;
+	};
+
+	TArray<FRepRecord> ClassReps;
+
+	TArray<UField*> NetFields;
+
+	int32_t FirstOwnedClassRep = 0;
+
+	UObject* ClassDefaultObject;
+
+	void* SparseClassData;
+
+	UStruct* SparseClassDataStruct;
+
+	template <typename Key, typename Value>
+	class TMap
+	{
+		char UnknownData[0x50];
+	};
+
+	TMap<FName, UFunction*> FuncMap;
+
+	/** A cache of all functions by name that exist in a parent (superclass or interface) context */
+	mutable TMap<FName, UFunction*> SuperFuncMap;
+
+	struct SRWLOCK
+	{
+		void* Ptr;
+	};
+
+	class FWindowsRWLock
+	{
+	public:
+		SRWLOCK Mutex;
+	};
+
+	mutable FWindowsRWLock SuperFuncMapLock;
+
+	/**
+	 * The list of interfaces which this class implements, along with the pointer property that is located at the offset of the interface's vtable.
+	 * If the interface class isn't native, the property will be null.
+	 */
+	struct FImplementedInterface
+	{
+		/** the interface class */
+		UClass* Class;
+		/** the pointer offset of the interface's vtable */
+		int32_t PointerOffset;
+		/** whether or not this interface has been implemented via K2 */
+		bool bImplementedByK2;
+	};
+
+	TArray<FImplementedInterface> Interfaces;
+
+	struct FGCReferenceTokenStream
+	{
+		TArray<uint32_t> Tokens;
+		TArray<FName> TokenDebugInfo;
+	};
+
+	FGCReferenceTokenStream ReferenceTokenStream;
+
+	struct CRITICAL_SECTION
+	{
+		void* Opaque1[1];
+		long Opaque2[2];
+		void* Opaque3[3];
+	};
+
+	class FWindowsCriticalSection
+	{
+		CRITICAL_SECTION CriticalSection;
+	};
+
+	FWindowsCriticalSection ReferenceTokenStreamCritical;
+
+	/** This class's native functions. */
+
+	struct FNativeFunctionLookup
+	{
+		FName Name;
+		void* Pointer;
+	};
+
+	TArray<FNativeFunctionLookup> NativeFunctionLookupTable;
+
+
+	static class UClass* StaticClass();
+};
+
+class UBlueprintGeneratedClass : UClass
+{
+public:
+	static class UClass* StaticClass();
+};
+
+
+struct FAssetData
+{
+	struct FName ObjectPath;
+	struct FName PackageName;
+	struct FName PackagePath;
+	struct FName AssetName;
+	struct FName AssetClass;
+	unsigned char padding_28[0x38];
 };

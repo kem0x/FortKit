@@ -5,37 +5,47 @@
 
 namespace Dumper
 {
-	static auto GeneratePadding(FProperty* prop, const int& size, const int& offset, const std::string& comment, const std::string& name = "unreflected")
+	static auto GeneratePadding(const int& size, const int& offset, const std::string& comment, const std::string& name = "unreflected")
 	{
-		return tfm::format("	unsigned char		%s_%x[0x%x]; //0x%x (0x%x) %x\n", name, offset, size, offset, size, comment);
+		return tfm::format("	unsigned char%s%s_%x[0x%x]; //0x%x (0x%x) %x\n", Util::Spacing("unsigned char"), name, offset, size, offset, size, comment);
 	}
 
-	static void GenerateFields(std::ofstream& file, UClass* Class)
+	static auto GenerateBitPadding(const int& size, const int& id, const int& offset, const std::string& comment, const std::string& name = "unreflectedBit")
 	{
-		auto prop = (FProperty*)Class->ChildProperties;
+		return tfm::format("	unsigned char%s%s_%x : %d; //0x%x (0x%x) %x\n", Util::Spacing("unsigned char"), name, id, size, offset, size, comment);
+	}
 
-		if (Class->PropertiesSize > 0x0 && !Class->ChildProperties && Util::IsBadReadPtr(Class->ChildProperties))
+	static void GenerateFields(std::ofstream& file, UStruct* Struct)
+	{
+		auto prop = (FProperty*)Struct->ChildProperties;
+
+		if (Struct->PropertiesSize > 0x0 && !Struct->ChildProperties && Util::IsBadReadPtr(Struct->ChildProperties))
 		{
-			return (void)(file << tfm::format("	unsigned char		%s_%x[0x%x];\n", "unreflected", Class->PropertiesSize, Class->PropertiesSize));
+			return (void)(file << tfm::format("	unsigned char%s%s_%x[0x%x];\n", Util::Spacing("unsigned char"), "unreflected", Struct->PropertiesSize, Struct->PropertiesSize));
 		}
 
 		auto offset = prop->Offset_Internal + prop->ElementSize * prop->ArrayDim;
 
-		file << tfm::format("	%s		%s; //0x%x (0x%x)\n", Generic::StringifyPropType(prop), Class->ChildProperties->GetName(), prop->Offset_Internal, prop->ElementSize);
+		if (Struct->SuperStruct->IsValid() && prop->Offset_Internal >= Struct->SuperStruct->PropertiesSize)
+		{
+			offset = Struct->SuperStruct->PropertiesSize;
+		}
 
-		prop = (FProperty*)Class->ChildProperties->Next;
-
-		if (!prop && Util::IsBadReadPtr(prop)) return;
+		auto bitFieldsCount = 0;
+		FBoolProperty* lastBoolProp = nullptr;
 
 		while (prop)
 		{
 			if (offset < prop->Offset_Internal)
 			{
-				file << GeneratePadding(prop, prop->Offset_Internal - offset, offset, "");
+				lastBoolProp = nullptr;
+				file << GeneratePadding(prop->Offset_Internal - offset, offset, "");
 			}
 
 			std::string comment;
 			auto propName = prop->GetName();
+			Util::FixName(propName);
+
 			auto cppType = Generic::StringifyPropType(prop);
 
 			if (!cppType.empty())
@@ -45,7 +55,39 @@ namespace Dumper
 					propName += tfm::format("[0x%x]", prop->ArrayDim);
 					comment += " (ARRAY) ";
 				}
-				file << tfm::format("	%s		%s; //0x%x (0x%x) %s\n", cppType, propName, prop->Offset_Internal, prop->ElementSize, comment);
+
+				if (prop->ClassPrivate->Id == FFieldClassID::Bool && reinterpret_cast<FBoolProperty*>(prop)->IsBitfield())
+				{
+					auto bprop = reinterpret_cast<FBoolProperty*>(prop);
+					auto missingBits = bprop->GetMissingBitsCount(lastBoolProp);
+
+					if (missingBits.second != -1)
+					{
+						if (missingBits.first > 0)
+						{
+							file << GenerateBitPadding(missingBits.first, bitFieldsCount++, lastBoolProp->Offset_Internal, comment);
+						}
+
+						if (missingBits.second > 0)
+						{
+							file << GenerateBitPadding(missingBits.second, bitFieldsCount++, prop->Offset_Internal, comment);
+						}
+					}
+					else if (missingBits.first > 0)
+					{
+						file << GenerateBitPadding(missingBits.first, bitFieldsCount++, prop->Offset_Internal, comment);
+					}
+
+					lastBoolProp = bprop;
+
+					propName += " : 1";
+				}
+				else
+				{
+					lastBoolProp = nullptr;
+				}
+
+				file << tfm::format("	%s%s%s; //0x%x (0x%x) %s\n", cppType, Util::Spacing(cppType), propName, prop->Offset_Internal, prop->ElementSize, comment);
 			}
 			else
 			{
@@ -55,40 +97,52 @@ namespace Dumper
 					comment += "(UNHANDLED PROPERTY TYPE: " + prop->ClassPrivate->Name.ToString() + " UID: " + std::to_string((int)prop->ClassPrivate->Id) + ")";
 				}
 
-				file << GeneratePadding(prop, prop->ElementSize, prop->Offset_Internal, comment, propName);
+				file << GeneratePadding(prop->ElementSize, prop->Offset_Internal, comment, propName);
 			}
 
 			offset = prop->Offset_Internal + prop->ElementSize * prop->ArrayDim;
 			prop = (FProperty*)prop->Next;
 		}
 
-		if (offset < Class->PropertiesSize)
+		if (offset < Struct->PropertiesSize)
 		{
-			file << tfm::format("	unsigned char		%s_%x[0x%x]; //0x%x (0x%x)\n", "padding", offset, Class->PropertiesSize - offset, offset, Class->PropertiesSize - offset);
+			file << tfm::format("	unsigned char%s%s_%x[0x%x]; //0x%x (0x%x)\n", Util::Spacing("unsigned char"), "padding", offset, Struct->PropertiesSize - offset, offset, Struct->PropertiesSize - offset);
 		}
 	}
 
-	static void DumpClass(UClass* Class)
+	static void DumpStruct(UStruct* Struct)
 	{
-		if (!Class->ChildProperties && Util::IsBadReadPtr(Class->ChildProperties) && Class->PropertiesSize == 0x0) return;
+		if (!Struct->ChildProperties && Util::IsBadReadPtr(Struct->ChildProperties) && Struct->PropertiesSize == 0x0)
+			return;
 
 		auto fileType = ".h";
-		auto fileName = "DUMP\\" + Class->GetCPPName() + fileType;
+		auto fileName = "DUMP\\" + Struct->GetCPPName() + fileType;
 
 		std::ofstream file(fileName);
 
-		file << "struct " << Class->GetCPPName() << (Class->SuperStruct ? " : " + Class->SuperStruct->GetCPPName() : "") << "\n{ \n";
+		file << "// " << Struct->GetFullName();
+		file << "\n// " << tfm::format("Size: 0x%x ", Struct->PropertiesSize);
+		file << "\nstruct " << Struct->GetCPPName() << (Struct->SuperStruct ? " : public " + Struct->SuperStruct->GetCPPName() : "") << "\n{ \n";
 
-		GenerateFields(file, Class);
+		GenerateFields(file, Struct);
 
 		file << "};";
+
+		/*if(Struct->NativeFunctionLookupTable.Num() > 0)
+		{
+			MessageBoxA(nullptr, Struct->NativeFunctionLookupTable[0].Name.ToString().c_str(), "YAY", MB_OK);
+		}*/
 	}
 
-	static void DumpClasses()
+	static void Dump()
 	{
-		printf("[=] Dumping classes.\n");
-		std::ofstream log("GObjects.log");
+		printf("[=] Dumping.\n");
 
+		auto Start = std::chrono::steady_clock::now();
+
+		std::ofstream log("Objects.log");
+
+		auto dumped = 0;
 		for (auto i = 0x0; i < GObjects->NumElements; ++i)
 		{
 			auto object = GObjects->GetByIndex(i);
@@ -97,35 +151,20 @@ namespace Dumper
 				continue;
 			}
 
-			if (object->IsA<UClass>())
-			{
-				std::string objectName = object->GetFullName();
-				std::string item = "\n[" + std::to_string(i) + "] Object:[" + objectName + "]\n";
-				log << item;
-
-				DumpClass((UClass*)object);
-			}
-		}
-
-		printf("[+] Dumping classes is done!\n");
-	}
-
-
-	void DumpGObjects()
-	{
-		std::ofstream log("GObjects.log");
-
-		for (auto i = 0x0; i < GObjects->NumElements; ++i)
-		{
-			auto object = GObjects->GetByIndex(i);
-			if (object == nullptr)
-			{
-				continue;
-			}
-			std::string className = object->Class->GetFullName();
 			std::string objectName = object->GetFullName();
-			std::string item = "\n[" + std::to_string(i) + "] Object:[" + objectName + "] Class:[" + className + "]\n";
+			std::string item = "\n[" + std::to_string(i) + "] Object:[" + objectName + "]\n";
 			log << item;
+
+			if (object->IsA(UStruct::StaticClass()))
+			{
+				DumpStruct((UStruct*)object);
+				dumped++;
+			}
 		}
+
+		auto End = std::chrono::steady_clock::now();
+		printf("[+] Dumping done in %.02f ms\n", (End - Start).count() / 1000000.);
+
+		MessageBoxA(nullptr, ("Dumped " + std::to_string(dumped) + " UStruct(s)").c_str(), "Done!", MB_OK);
 	}
 }
