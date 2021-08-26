@@ -12,19 +12,16 @@ namespace Util
 		//freopen_s(&pFile, "kkkk.log", "w", stdout);
 	}
 
-	static auto FixName(std::string& name)
+	static void FixName(std::string& name)
 	{
-		char chars[] = " ?+-:/^()[]<>^.#\'\"%";
+		constexpr static std::string_view chars = " ?+_-:/^()[]<>^.#\'\"%";
 
-		for (unsigned int i = 0; i < strlen(chars); ++i)
-		{
-			name.erase(remove(name.begin(), name.end(), chars[i]), name.end());
-		}
+		erase_if(name, [](const unsigned char c) { return chars.find(c) != std::string_view::npos; });
 	}
 
 	static auto Spacing(const std::string& s, int size = 60)
 	{
-		const auto spacesC = new char[size + 1];
+		const auto spacesC = new char[size++];
 		memset(spacesC, ' ', size);
 		spacesC[size] = '\0';
 
