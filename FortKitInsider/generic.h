@@ -3,8 +3,7 @@
 
 namespace Generic
 {
-	std::string
-	StringifyPropType(FProperty* prop)
+	std::string StringifyPropType(FProperty* prop)
 	{
 		std::string ret;
 
@@ -201,5 +200,28 @@ namespace Generic
 		}
 
 		return ret;
+	}
+
+	static auto StringifyFlags(uint32_t Flags)
+	{
+		constexpr static const char* FunctionFlags[32] = {"Final", "0x00000002", "BlueprintAuthorityOnly", "BlueprintCosmetic", "0x00000010", "0x00000020", "Net", "NetReliable", "NetRequest", "Exec", "Native", "Event", "NetResponse", "Static", "NetMulticast", "0x00008000", "MulticastDelegate", "Public", "Private", "Protected", "Delegate", "NetServer", "HasOutParms", "HasDefaults", "NetClient", "DLLImport", "BlueprintCallable", "BlueprintEvent", "BlueprintPure", "0x20000000", "Const", "0x80000000"};
+
+		std::string FlagsA;
+
+		FlagsA += "(";
+
+		for (int32_t i = 0; i < 32; ++i)
+		{
+			const uint32_t Mask = 1U << i;
+			if ((Flags & Mask) != 0)
+			{
+				FlagsA += FunctionFlags[i];
+				FlagsA += " | ";
+			}
+		}
+
+		FlagsA += ")";
+
+		return FlagsA;
 	}
 }

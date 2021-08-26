@@ -92,10 +92,7 @@ namespace Dumper
 			else
 			{
 				//those are ignored on purpose
-				if (prop->ClassPrivate->Id != FFieldClassID::MulticastInlineDelegate && prop->ClassPrivate->Id != FFieldClassID::Delegate)
-				{
-					comment += "(UNHANDLED PROPERTY TYPE: " + prop->ClassPrivate->Name.ToString() + " UID: " + std::to_string((int)prop->ClassPrivate->Id) + ")";
-				}
+				comment += "(UNHANDLED PROPERTY TYPE: " + prop->ClassPrivate->Name.ToString() + " UID: " + std::to_string((int)prop->ClassPrivate->Id) + ")";
 
 				file << GeneratePadding(prop->ElementSize, prop->Offset_Internal, comment, propName);
 			}
@@ -107,6 +104,75 @@ namespace Dumper
 		if (offset < Struct->PropertiesSize)
 		{
 			file << tfm::format("	unsigned char%s%s_%x[0x%x]; //0x%x (0x%x)\n", Util::Spacing("unsigned char"), "padding", offset, Struct->PropertiesSize - offset, offset, Struct->PropertiesSize - offset);
+		}
+	}
+
+	static void GenerateFunctions(std::ofstream& file, UStruct* Struct)
+	{
+		auto child = Struct->Children;
+
+		if (!child || Util::IsBadReadPtr(child))
+		{
+			return;
+		}
+
+		file << "\n//Functions\n";
+
+		while (child)
+		{
+			if (child->IsA(UFunction::StaticClass()))
+			{
+				auto function = child->Cast<UFunction*>();
+
+				std::string retType = "void ";
+				std::string functionSig;
+
+				auto name = function->GetName();
+				Util::FixName(name);
+
+				functionSig += name;
+
+				auto paramChild = function->ChildProperties;
+
+				functionSig += "(";
+
+				while (paramChild)
+				{
+					auto paramType = Generic::StringifyPropType((FProperty*)paramChild);
+
+					if (!paramType.empty())
+					{
+						if (reinterpret_cast<FProperty*>(child)->ArrayDim > 1)
+						{
+							paramType += "*";
+						}
+						else
+						{
+							paramType += "&";
+						}
+					}
+					else
+					{
+						break;
+					}
+
+					auto paramName = paramChild->GetName();
+					Util::FixName(paramName);
+
+					functionSig += paramType + " " + paramName;
+
+					paramChild = paramChild->Next;
+					if (paramChild)
+						functionSig += ", ";
+				}
+
+				functionSig += ");";
+
+
+				file << retType << functionSig << " // " << Generic::StringifyFlags(function->FunctionFlags) << "\n";
+			}
+
+			child = child->Next;
 		}
 	}
 
@@ -125,6 +191,8 @@ namespace Dumper
 		file << "\nstruct " << Struct->GetCPPName() << (Struct->SuperStruct ? " : public " + Struct->SuperStruct->GetCPPName() : "") << "\n{ \n";
 
 		GenerateFields(file, Struct);
+
+		GenerateFunctions(file, Struct);
 
 		file << "};";
 

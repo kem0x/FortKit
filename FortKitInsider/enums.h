@@ -14,6 +14,12 @@ enum ASM : DWORD
 	SKIP
 };
 
+enum DumpType : uint32_t
+{
+	FunctionParamsHeaders,
+	
+};
+
 enum ELifetimeCondition
 {
 	COND_None = 0,
@@ -258,7 +264,6 @@ enum EClassFlags
 enum EClassCastFlags : uint64_t
 {
 	CASTCLASS_None = 0x0000000000000000,
-
 	CASTCLASS_UField = 0x0000000000000001,
 	CASTCLASS_FInt8Property = 0x0000000000000002,
 	CASTCLASS_UEnum = 0x0000000000000004,
