@@ -216,7 +216,6 @@ namespace Generic
 			if ((Flags & Mask) != 0)
 			{
 				FlagsA += FunctionFlags[i];
-				FlagsA += " | ";
 			}
 		}
 

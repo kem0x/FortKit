@@ -629,6 +629,7 @@ public:
 class UFunction : public UStruct
 {
 public:
+	void* padding;
 	EFunctionFlags FunctionFlags;
 	uint8_t NumParms;
 	uint16_t ParmsSize;

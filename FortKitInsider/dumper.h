@@ -92,7 +92,10 @@ namespace Dumper
 			else
 			{
 				//those are ignored on purpose
-				comment += "(UNHANDLED PROPERTY TYPE: " + prop->ClassPrivate->Name.ToString() + " UID: " + std::to_string((int)prop->ClassPrivate->Id) + ")";
+				if (prop->ClassPrivate->Id != FFieldClassID::MulticastInlineDelegate && prop->ClassPrivate->Id != FFieldClassID::Delegate)
+				{
+					comment += "(UNHANDLED PROPERTY TYPE: " + prop->ClassPrivate->Name.ToString() + " UID: " + std::to_string((int)prop->ClassPrivate->Id) + ")";
+				}
 
 				file << GeneratePadding(prop->ElementSize, prop->Offset_Internal, comment, propName);
 			}
@@ -118,14 +121,18 @@ namespace Dumper
 
 		file << "\n//Functions\n";
 
+		std::vector<std::string> params;
+
 		while (child)
 		{
 			if (child->IsA(UFunction::StaticClass()))
 			{
 				auto function = child->Cast<UFunction*>();
 
-				std::string retType = "void ";
+				std::string retType;
 				std::string functionSig;
+
+				retType = "void";
 
 				auto name = function->GetName();
 				Util::FixName(name);
@@ -138,7 +145,17 @@ namespace Dumper
 
 				while (paramChild)
 				{
-					auto paramType = Generic::StringifyPropType((FProperty*)paramChild);
+					auto paramType = Generic::StringifyPropType(reinterpret_cast<FProperty*>(paramChild));
+
+					if (reinterpret_cast<FProperty*>(paramChild)->PropertyFlags & CPF_ReturnParm)
+					{
+						if (!paramType.empty())
+						{
+							retType = paramType;
+						}
+
+						break;
+					}
 
 					if (!paramType.empty())
 					{
@@ -162,14 +179,16 @@ namespace Dumper
 					functionSig += paramType + " " + paramName;
 
 					paramChild = paramChild->Next;
-					if (paramChild)
+
+					if (paramChild && !(reinterpret_cast<FProperty*>(paramChild)->PropertyFlags & CPF_ReturnParm))
 						functionSig += ", ";
 				}
 
 				functionSig += ");";
 
-
-				file << retType << functionSig << " // " << Generic::StringifyFlags(function->FunctionFlags) << "\n";
+				file << "	" << (function->FunctionFlags & FUNC_Static ? "static " : "") << retType
+				<< " " << functionSig
+				<< " // " << Generic::StringifyFlags(function->FunctionFlags) << "\n";
 			}
 
 			child = child->Next;
@@ -186,11 +205,18 @@ namespace Dumper
 
 		std::ofstream file(fileName);
 
+		auto isClass = Struct->IsA(UClass::StaticClass());
+
 		file << "// " << Struct->GetFullName();
 		file << "\n// " << tfm::format("Size: 0x%x ", Struct->PropertiesSize);
-		file << "\nstruct " << Struct->GetCPPName() << (Struct->SuperStruct ? " : public " + Struct->SuperStruct->GetCPPName() : "") << "\n{ \n";
+		file << (isClass ? "\nclass " : "\nstruct") << Struct->GetCPPName()
+		<< (Struct->SuperStruct ? " : public " + Struct->SuperStruct->GetCPPName() : "")
+		<< "\n{ \n" << (isClass ? "public:\n" : "");
 
-		GenerateFields(file, Struct);
+		if (Struct->SuperStruct && Struct->PropertiesSize > Struct->SuperStruct->PropertiesSize)
+		{
+			GenerateFields(file, Struct);
+		}
 
 		GenerateFunctions(file, Struct);
 
