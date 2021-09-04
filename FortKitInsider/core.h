@@ -28,11 +28,12 @@ namespace Core
 
 		auto loaded = 0;
 
-		for (auto i = 0; i < Params.OutAssetData.Num(); i++)
+
+		/*for (auto i = 0; i < Params.OutAssetData.Num(); i++)
 		{
 			auto data = Params.OutAssetData.operator[](i);
 
-			if (data.AssetClass.ToString() == "BlueprintGeneratedClass") /* TODO: move to `data.AssetClass.ToString().ends_with("Class")` */
+			if (data.AssetClass.ToString() == "BlueprintGeneratedClass") // TODO: move to `data.AssetClass.ToString().ends_with("Class")`
 			{
 				if (!UObject::FindObject((data.AssetClass.ToString() + data.ObjectPath.ToString()).c_str())->IsValid())
 				{
@@ -43,8 +44,7 @@ namespace Core
 					}
 				}
 			}
-		}
-
+		}*/
 		printf("[+]Loaded %i classes!\n", loaded);
 	}
 
@@ -64,7 +64,7 @@ namespace Core
 				}
 			}
 		}
-		
+
 		return -1;
 	}
 }

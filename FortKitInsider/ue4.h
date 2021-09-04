@@ -3,6 +3,55 @@
 #include "enums.h"
 #include "util.h"
 
+class UAllocator
+{
+public:
+	void* structPtr = nullptr;
+private:
+	size_t totalSize = 0;
+	size_t padding = 0;
+	size_t lastSize = 0;
+
+	template <typename T>
+	void add(T Src)
+	{
+		constexpr auto Size = sizeof(T);
+
+		totalSize += Size;
+
+		structPtr = realloc(structPtr, totalSize);
+		if (structPtr)
+		{
+			memcpy((void*)(reinterpret_cast<uintptr_t>(structPtr) + padding), &Src, Size);
+		}
+
+		//printf("Size: %d, totalSize: %d, padding: %d\n", Size, totalSize, padding);
+
+		padding += Size;
+		lastSize = Size;
+	}
+
+	template <class none = void>
+	[[nodiscard]] constexpr void* Create() const
+	{
+		return (void*)((uintptr_t)structPtr + padding - lastSize);
+	}
+
+public:
+	template <typename T, typename... Rest>
+	void* Create(T retValue, Rest ... params)
+	{
+		add(retValue);
+
+		return Create<>(params...);
+	}
+
+	//Free memory when we get out of the scope
+	/*~UAllocator()
+	{
+		free(structPtr);
+	}*/
+};
 
 template <class T>
 struct TArray
@@ -179,11 +228,11 @@ struct FUObjectItem
 
 struct PreFUObjectItem
 {
-	FUObjectItem* FUObject[10];
+	FUObjectItem* FUObject[9];
 };
 
 struct GlobalObjects
-{
+{	
 	PreFUObjectItem* ObjectArray;
 	BYTE unknown1[8];
 	int32_t MaxElements;
@@ -281,6 +330,22 @@ public:
 	auto ProcessEvent(void* fn, void* params)
 	{
 		ProcessEventR(this, fn, params);
+	}
+
+	template <typename ReturnType = void*, typename First, typename ... Rest>
+	FORCEINLINE ReturnType Call(UObject* function, First&& firstParam, Rest&&... params)
+	{
+		ReturnType RetInstance{};
+
+		UAllocator alloc{};
+
+		auto ret = (ReturnType*)alloc.Create(std::forward<First>(firstParam),
+			std::forward<Rest>(params)...,
+			RetInstance);
+
+		ProcessEvent(function, alloc.structPtr);
+
+		return ret;
 	}
 
 	template <typename T = UObject*>

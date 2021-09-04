@@ -19,22 +19,12 @@ namespace Util
 		erase_if(name, [](const unsigned char c) { return chars.find(c) != std::string_view::npos; });
 	}
 
-	static auto Spacing(const std::string& s, int size = 60)
+	static void Spacing(std::string& str, const size_t size = 70, bool left = false)
 	{
-		const auto spacesC = new char[size++];
-		memset(spacesC, ' ', size);
-		spacesC[size] = '\0';
-
-		std::string spaces(spacesC);
-
-		if (s.size() > spaces.size())
+		if (size > str.size())
 		{
-			return std::string(" ");
+			str.insert(left ? str.begin() : str.end(), size - str.size(), ' ');
 		}
-
-		spaces.erase(0, s.size());
-
-		return spaces;
 	}
 
 	static bool IsBadReadPtr(void* p)

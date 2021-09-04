@@ -7,12 +7,18 @@ namespace Dumper
 {
 	static auto GeneratePadding(const int& size, const int& offset, const std::string& comment, const std::string& name = "unreflected")
 	{
-		return tfm::format("	unsigned char%s%s_%x[0x%x]; //0x%x (0x%x) %x\n", Util::Spacing("unsigned char"), name, offset, size, offset, size, comment);
+		std::string cppType = "unsigned char";
+		Util::Spacing(cppType);
+
+		return tfm::format("	%s%s_%x[0x%x]; //0x%x (0x%x) %x\n", cppType, name, offset, size, offset, size, comment);
 	}
 
 	static auto GenerateBitPadding(const int& size, const int& id, const int& offset, const std::string& comment, const std::string& name = "unreflectedBit")
 	{
-		return tfm::format("	unsigned char%s%s_%x : %d; //0x%x (0x%x) %x\n", Util::Spacing("unsigned char"), name, id, size, offset, size, comment);
+		std::string cppType = "unsigned char";
+		Util::Spacing(cppType);
+
+		return tfm::format("	%s%s_%x : %d; //0x%x (0x%x) %x\n", cppType, name, id, size, offset, size, comment);
 	}
 
 	static void GenerateFields(std::ofstream& file, UStruct* Struct)
@@ -21,7 +27,10 @@ namespace Dumper
 
 		if (Struct->PropertiesSize > 0x0 && !Struct->ChildProperties && Util::IsBadReadPtr(Struct->ChildProperties))
 		{
-			return (void)(file << tfm::format("	unsigned char%s%s_%x[0x%x];\n", Util::Spacing("unsigned char"), "unreflected", Struct->PropertiesSize, Struct->PropertiesSize));
+			std::string cppType = "unsigned char";
+			Util::Spacing(cppType);
+
+			return (void)(file << tfm::format("	%s%s_%x[0x%x];\n", cppType, "unreflected", Struct->PropertiesSize, Struct->PropertiesSize));
 		}
 
 		auto offset = prop->Offset_Internal + prop->ElementSize * prop->ArrayDim;
@@ -50,12 +59,6 @@ namespace Dumper
 
 			if (!cppType.empty())
 			{
-				if (prop->ArrayDim > 1)
-				{
-					propName += tfm::format("[0x%x]", prop->ArrayDim);
-					comment += " (ARRAY) ";
-				}
-
 				if (prop->ClassPrivate->Id == FFieldClassID::Bool && reinterpret_cast<FBoolProperty*>(prop)->IsBitfield())
 				{
 					auto bprop = reinterpret_cast<FBoolProperty*>(prop);
@@ -87,7 +90,19 @@ namespace Dumper
 					lastBoolProp = nullptr;
 				}
 
-				file << tfm::format("	%s%s%s; //0x%x (0x%x) %s\n", cppType, Util::Spacing(cppType), propName, prop->Offset_Internal, prop->ElementSize, comment);
+				comment += tfm::format("//0x%x (0x%x)", prop->Offset_Internal, prop->ElementSize);
+
+				if (prop->ArrayDim > 1)
+				{
+					propName += tfm::format("[0x%x]", prop->ArrayDim);
+					comment += " (ARRAY) ";
+				}
+
+				Util::Spacing(cppType);
+				Util::Spacing(comment, 50, true);
+
+				file << tfm::format("	%s%s;", cppType, propName, comment);
+				file << tfm::format("	%s%s;%s\n", cppType, propName, comment);
 			}
 			else
 			{
@@ -106,7 +121,15 @@ namespace Dumper
 
 		if (offset < Struct->PropertiesSize)
 		{
-			file << tfm::format("	unsigned char%s%s_%x[0x%x]; //0x%x (0x%x)\n", Util::Spacing("unsigned char"), "padding", offset, Struct->PropertiesSize - offset, offset, Struct->PropertiesSize - offset);
+			std::string cppType = "unsigned char";
+			Util::Spacing(cppType);
+
+			auto var = tfm::format("	%s%s_%x[0x%x];", cppType, "padding", offset, Struct->PropertiesSize - offset);
+			Util::Spacing(var, 50, true);
+
+			auto comment = tfm::format("//0x%x (0x%x)", offset, Struct->PropertiesSize - offset);
+
+			file << var << comment << "\n";
 		}
 	}
 
@@ -121,7 +144,7 @@ namespace Dumper
 
 		file << "\n//Functions\n";
 
-		std::vector<std::string> params;
+		std::string params;
 
 		while (child)
 		{
@@ -134,14 +157,7 @@ namespace Dumper
 
 				retType = "void";
 
-				auto name = function->GetName();
-				Util::FixName(name);
-
-				functionSig += name;
-
 				auto paramChild = function->ChildProperties;
-
-				functionSig += "(";
 
 				while (paramChild)
 				{
@@ -177,18 +193,33 @@ namespace Dumper
 					Util::FixName(paramName);
 
 					functionSig += paramType + " " + paramName;
+					params += paramName;
 
 					paramChild = paramChild->Next;
 
 					if (paramChild && !(reinterpret_cast<FProperty*>(paramChild)->PropertyFlags & CPF_ReturnParm))
 						functionSig += ", ";
+					params += ", ";
 				}
 
-				functionSig += ");";
+				auto name = function->GetName();
+				Util::FixName(name);
 
-				file << "	" << (function->FunctionFlags & FUNC_Static ? "static " : "") << retType
-				<< " " << functionSig
+				file << (function->FunctionFlags & FUNC_Static ? "static " : "") << retType
+				<< " " << name << "(" << functionSig << ")"
 				<< " // " << Generic::StringifyFlags(function->FunctionFlags) << "\n";
+
+				file << "{\n" << "	auto fn = UObject::FindObject(\"" << function->GetFullName() << "\");\n";
+
+				file << "	auto inst = " <<
+				/*(function->FunctionFlags & FUNC_Static && Struct->IsA<UClass>() ?
+				                       reinterpret_cast<UClass*>(Struct)->ClassDefaultObject->GetFullName() : */"this;\n";
+
+				file << "	return inst->Call<" << retType << ">(fn, " << params << ");";
+
+				params.clear();
+
+				file << "\n}\n\n";
 			}
 
 			child = child->Next;

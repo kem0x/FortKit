@@ -51,16 +51,16 @@ static void Main(HMODULE hModule)
 
 	ProcessEventR = decltype(ProcessEventR)(ProcessEventAdd);
 
-	//Core::LoadAllClasses();
-
-	//auto peIndex = Core::GetVTableIndex(ProcessEventR);
-
 	auto End = std::chrono::steady_clock::now();
 
 	printf("[=] Init Time: %.02f ms\n", (End - Start).count() / 1000000.);
 
+	//Core::LoadAllClasses();
 
-	Dumper::Dump();
+	//auto peIndex = Core::GetVTableIndex(ProcessEventR);
+
+	printf("Test: %s\n", GObjects->GetByIndex(0)->GetFullName().c_str());
+	//Dumper::Dump();
 	//Dumper::DumpGObjects();
 
 	FreeLibraryAndExitThread(hModule, 0);

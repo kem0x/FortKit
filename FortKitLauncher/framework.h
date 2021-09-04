@@ -7,7 +7,7 @@
 #include <psapi.h>
 #include <fstream>
 #include <iostream>
-//#include "includes/json.hpp"
-//using namespace nlohmann;
+#include "includes/json.hpp"
+using namespace nlohmann;
 
 #include "util.h"
