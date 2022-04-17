@@ -1,5 +1,5 @@
 #pragma once
-#include "enums.h"
+#include "enums.h" 
 
 namespace Memory
 {
@@ -74,9 +74,9 @@ namespace Memory
 
 		if (ref)
 		{
-			printf("Ref %ls %p\n", string.c_str(), ref);
+			//printf("Ref %ls %p\n", string.c_str(), ref);
 
-			
+
 			const auto scanBytes = static_cast<std::uint8_t*>(ref);
 
 			//scan backwards till we hit a ret (and assume this is the function start)

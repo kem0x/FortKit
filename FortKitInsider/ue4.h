@@ -2,6 +2,8 @@
 #include <locale>
 #include "enums.h"
 #include "util.h"
+#include "parallel_hashmap\phmap.h"
+#include "parallel_hashmap\phmap_utils.h"
 
 class UAllocator
 {
@@ -70,6 +72,13 @@ public:
 		Count = Max = 0;
 	};
 
+	TArray(unsigned int ReserveAmount)
+	{
+		Data = nullptr;
+		Count = Max = 0;
+		Reserve(ReserveAmount);
+	};
+
 	int Num() const
 	{
 		return Count;
@@ -90,11 +99,45 @@ public:
 		return i < Num();
 	}
 
+	void Reserve(unsigned int Amount)
+	{
+		if (Data)
+		{
+			Data = static_cast<T*>(realloc(Data, sizeof(T) * (Count + Amount)));
+		}
+		else
+		{
+			Data = static_cast<T*>(malloc(sizeof(T) * (Count + Amount)));
+		}
+
+		Max = Count + Amount;
+	}
+
 	void Add(T InputData)
 	{
-		Data = static_cast<T*>(realloc(Data, sizeof(T) * (Count + 1)));
-		Data[Count++] = InputData;
-		Max = Count;
+		if (Max <= Count)
+		{
+			if (Data)
+			{
+				Data = static_cast<T*>(realloc(Data, sizeof(T) * (Count + 1)));
+			}
+			else
+			{
+				Data = static_cast<T*>(malloc(sizeof(T) * (Count + 1)));
+			}
+
+			Data[Count++] = InputData;
+			Max = Count;
+		}
+		else
+		{
+			Data[Count++] = InputData;
+		}
+	};
+
+	void Delete()
+	{
+		delete Data;
 	};
 };
 
@@ -145,12 +188,12 @@ struct FString : private TArray<wchar_t>
 };
 
 // FName::ToString
-inline void (*FNameToString)(void* _this, FString& out);
+inline void (*FNameToString)(const void* _this, FString& out);
 
 struct FName
 {
-	uint32_t ComparisonIndex;
-	uint32_t DisplayIndex;
+	mutable uint32_t ComparisonIndex;
+	mutable uint32_t DisplayIndex;
 
 	FName() = default;
 
@@ -160,7 +203,12 @@ struct FName
 		ComparisonIndex = (name & 0xFFFFFFFFLL);
 	};
 
-	auto ToString()
+	bool operator== (FName n) const
+	{
+		return ComparisonIndex == n.ComparisonIndex;
+	}
+
+	auto ToString() const
 	{
 		FString temp;
 		FNameToString(this, temp);
@@ -170,7 +218,7 @@ struct FName
 		return ret;
 	}
 
-	auto ToWString()
+	auto ToWString() const
 	{
 		FString temp;
 		FNameToString(this, temp);
@@ -178,6 +226,11 @@ struct FName
 		std::wstring ret(temp.ToWString());
 
 		return ret;
+	}
+
+	friend size_t hash_value(const FName& p)
+	{
+		return phmap::HashState().combine(0, p.ComparisonIndex, p.ComparisonIndex / 3);
 	}
 };
 
@@ -220,21 +273,25 @@ class UObject;
 struct FUObjectItem
 {
 	UObject* Object;
-	DWORD Flags;
-	DWORD ClusterIndex;
-	DWORD SerialNumber;
-	DWORD SerialNumber2;
+	int32_t Flags;
+	int32_t ClusterIndex;
+	int32_t SerialNumber;
 };
 
-struct PreFUObjectItem
+struct FChunkedFixedUObjectArray
 {
-	FUObjectItem* FUObject[9];
+	FUObjectItem** Objects;
+	FUObjectItem* PreAllocatedObjects;
+	int32_t MaxElements;
+	int32_t NumElements;
+	int32_t MaxChunks;
+	int32_t NumChunks;
 };
 
 struct GlobalObjects
-{	
-	PreFUObjectItem* ObjectArray;
-	BYTE unknown1[8];
+{
+	FChunkedFixedUObjectArray ObjectArray;
+	BYTE unk[8];
 	int32_t MaxElements;
 	int32_t NumElements;
 
@@ -246,7 +303,7 @@ struct GlobalObjects
 		{
 			while (true)
 			{
-				if (ObjectArray->FUObject[cStart] == nullptr)
+				if (ObjectArray.Objects[cStart] == nullptr)
 				{
 					cStart++;
 				}
@@ -259,7 +316,7 @@ struct GlobalObjects
 			cEnd = cStart;
 			while (true)
 			{
-				if (ObjectArray->FUObject[cEnd] == nullptr)
+				if (ObjectArray.Objects[cEnd] == nullptr)
 				{
 					break;
 				}
@@ -288,7 +345,7 @@ struct GlobalObjects
 		chunkPos = cStart + chunkIndex;
 		if (chunkPos < cEnd)
 		{
-			Object = ObjectArray->FUObject[chunkPos] + (index - chunkSize * chunkIndex);
+			Object = ObjectArray.Objects[chunkPos] + (index - chunkSize * chunkIndex);
 			if (!Object) { return nullptr; }
 
 			return Object->Object;
@@ -296,10 +353,14 @@ struct GlobalObjects
 
 		return nullptr;
 	}
+
+	bool TryFindObject(std::string startOfName, UObject& out);
+	bool TryFindObjectByName(std::string name, UObject& out);
 };
 
 
 inline struct GlobalObjects* GObjects;
+inline struct FNamePool* GNames;
 
 struct FPointer
 {
@@ -311,6 +372,11 @@ inline UObject* (*StaticLoadObject_Internal)(void* Class, void* Outer, const TCH
 
 // UObject::ProcessEvent
 static void* (*ProcessEventR)(void*, void*, void*);
+
+// GetNamePool
+inline FNamePool* (*GetNamePool)();
+
+__forceinline std::string GetNameSafe(UObject* Object);
 
 class UObject
 {
@@ -351,7 +417,7 @@ public:
 	template <typename T = UObject*>
 	static T FindObject(char const* name, bool ends_with = false, int toSkip = 0)
 	{
-		for (auto i = 0x0; i < GObjects->NumElements; ++i)
+		for (auto i = 0x0; i < GObjects->ObjectArray.NumElements; ++i)
 		{
 			auto object = GObjects->GetByIndex(i);
 			if (object == nullptr)
@@ -420,10 +486,10 @@ public:
 
 		for (auto outer = Outer; outer; outer = outer->Outer)
 		{
-			temp = outer->GetName() + "." + temp;
+			temp = GetNameSafe(outer) + "." + temp;
 		}
 
-		temp = reinterpret_cast<UObject*>(Class)->GetName() + " " + temp + this->GetName();
+		temp = GetNameSafe(reinterpret_cast<UObject*>(Class)) + " " + temp + GetNameSafe(this);
 		return temp;
 	}
 
@@ -433,6 +499,12 @@ public:
 		return c;
 	}
 };
+
+__forceinline std::string GetNameSafe(UObject* Object)
+{
+	if (Object == nullptr) return "None";
+	else return Object->GetName();
+}
 
 class FField;
 
@@ -501,7 +573,7 @@ public:
 	FFieldVariant Owner;
 	FField* Next;
 	FName NamePrivate;
-	EObjectFlags FlagsPrivate;
+	//EObjectFlags FlagsPrivate;
 
 	std::string GetName()
 	{
@@ -527,6 +599,41 @@ public:
 	}
 };
 
+enum EPropertyType : uint8_t
+{
+	ByteProperty,
+	BoolProperty,
+	IntProperty,
+	FloatProperty,
+	ObjectProperty,
+	NameProperty,
+	DelegateProperty,
+	DoubleProperty,
+	ArrayProperty,
+	StructProperty,
+	StrProperty,
+	TextProperty,
+	InterfaceProperty,
+	MulticastDelegateProperty,
+	WeakObjectProperty,
+	LazyObjectProperty,
+	AssetObjectProperty,
+	SoftObjectProperty,
+	UInt64Property,
+	UInt32Property,
+	UInt16Property,
+	Int64Property,
+	Int16Property,
+	Int8Property,
+	MapProperty,
+	SetProperty,
+	EnumProperty,
+	FieldPathProperty,
+	EnumAsByteProperty,
+
+	Unknown = 0xFF
+};
+
 class FProperty : public FField
 {
 public:
@@ -541,6 +648,8 @@ public:
 	FProperty* NextRef;
 	FProperty* DestructorLinkNext;
 	FProperty* PostConstructLinkNext;
+
+	EPropertyType GetPropertyType();
 };
 
 class FBoolProperty : public FProperty
@@ -577,15 +686,15 @@ public:
 	{
 		if (other == nullptr)
 		{
-			return {GetBitPosition(ByteMask), -1};
+			return { GetBitPosition(ByteMask), -1 };
 		}
 
 		if (Offset_Internal == other->Offset_Internal)
 		{
-			return {GetBitPosition(ByteMask) - GetBitPosition(other->ByteMask) - 1, -1};
+			return { GetBitPosition(ByteMask) - GetBitPosition(other->ByteMask) - 1, -1 };
 		}
 
-		return {std::numeric_limits<uint8_t>::digits - GetBitPosition(other->ByteMask) - 1, GetBitPosition(ByteMask)};
+		return { std::numeric_limits<uint8_t>::digits - GetBitPosition(other->ByteMask) - 1, GetBitPosition(ByteMask) };
 	}
 };
 
@@ -619,8 +728,9 @@ public:
 	static class UClass* StaticClass();
 };
 
-class UEnum : public UField
+class UEnum : public UObject
 {
+public:
 	enum class ECppForm
 	{
 		Regular,
@@ -628,10 +738,44 @@ class UEnum : public UField
 		EnumClass
 	};
 
-public:
+	void* Pad;
 	FString CppType;
 	TArray<TPair<FName, int64_t>> Names;
 	ECppForm CppForm;
+	EEnumFlags EnumFlags;
+
+	static class UClass* StaticClass();
+
+	auto GetCPPString()
+	{
+		return CppType.ToString();
+	}
+
+	auto GetEnumType()
+	{
+		uint64_t maxValue = 0;
+
+		for (size_t i = 0; i < Names.Num(); i++)
+			if (Names[i].Value > maxValue)
+				maxValue = Names[i].Value;
+
+		if (maxValue <= 0x100)
+		{
+			return "uint8_t";
+		}
+		else if (maxValue <= 0xFFFF)
+		{
+			return "uint16_t";
+		}
+		else if (maxValue <= 0xFFFFFFFF)
+		{
+			return "uint32_t";
+		}
+		else if (maxValue <= 0xFFFFFFFFFFFFFFFF)
+		{
+			return "uint64_t";
+		}
+	}
 };
 
 class FEnumProperty : public FProperty
@@ -686,7 +830,7 @@ public:
 	FProperty* DestructorLink;
 	FProperty* PostConstructLink;
 	TArray<UObject*> ScriptAndPropertyObjectReferences;
-	void /* FUnresolvedScriptPropertiesArray */ * UnresolvedScriptProperties;
+	void /* FUnresolvedScriptPropertiesArray */* UnresolvedScriptProperties;
 
 	static class UClass* StaticClass();
 };
@@ -830,6 +974,22 @@ public:
 class UBlueprintGeneratedClass : UClass
 {
 public:
+	static class UClass* StaticClass();
+};
+
+class UAnimBlueprintGeneratedClass : UClass
+{
+public:
+	static class UClass* StaticClass();
+};
+
+class UScriptStruct : UStruct
+{
+public:
+	EStructFlags StructFlags;
+	bool bPrepareCppStructOpsCompleted;
+	void* CppStructOps;
+
 	static class UClass* StaticClass();
 };
 
