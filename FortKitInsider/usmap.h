@@ -202,6 +202,7 @@ public:
 
 			auto Prop = (FProperty*)Struct->ChildProperties;
 			unsigned short PropCount = 0;
+			unsigned short SerializablePropCount = 0;
 
 			while (Prop)
 			{
@@ -209,11 +210,13 @@ public:
 
 				Properties.push_back(Data);
 				Prop = (FProperty*)Prop->Next;
-				PropCount++;
+
+				PropCount += Data.ArrayDim;
+				SerializablePropCount++;
 			}
 
 			m_Writer.Write(PropCount);
-			m_Writer.Write(PropCount);
+			m_Writer.Write(SerializablePropCount);
 
 			for (auto p : Properties)
 			{
