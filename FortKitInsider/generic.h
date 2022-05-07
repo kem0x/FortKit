@@ -10,7 +10,7 @@ namespace Generic
 		switch (prop->ClassPrivate->Id)
 		{
 		case FFieldClassID::Object: 
-		case (FFieldClassID)0x0020000000000000:
+		case FFieldClassID::ObjectPointer:
 		case FFieldClassID::Class:
 		{
 			ret += "class " + reinterpret_cast<FObjectPropertyBase*>(prop)->PropertyClass->GetCPPName() + (prop->ElementSize == 0x8 ? "*" : "");

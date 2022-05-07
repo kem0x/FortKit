@@ -550,7 +550,8 @@ enum class FFieldClassID : uint64_t
 	Set = 1llu << 47,
 	Enum = 1llu << 48,
 	MulticastInlineDelegate = 1llu << 50,
-	MulticastSparseDelegate = 1llu << 51
+	MulticastSparseDelegate = 1llu << 51,
+	ObjectPointer = 1llu << 53
 };
 
 class FFieldClass

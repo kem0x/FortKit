@@ -178,8 +178,8 @@ EPropertyType FProperty::GetPropertyType()
 	switch (this->ClassPrivate->Id)
 	{
 	case FFieldClassID::Object:
+	case FFieldClassID::ObjectPointer:
 	case FFieldClassID::Class:
-	case static_cast<FFieldClassID>(0x0020000000000000):
 	{
 		return EPropertyType::ObjectProperty;
 		break;
