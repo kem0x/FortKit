@@ -8,7 +8,6 @@
 static void Main(HMODULE hModule)
 {
 	auto Start = std::chrono::steady_clock::now();
-	auto baseTest = (intptr_t)GetModuleHandle(NULL);
 
 	Util::SetupConsole();
 
@@ -40,7 +39,7 @@ static void Main(HMODULE hModule)
 	FNameToString = decltype(FNameToString)(FNameToStringAdd);
 
 	auto vtable = *reinterpret_cast<void***>(GObjects->GetByIndex(0));
-	auto ProcessEventAdd = (uintptr_t)vtable[0x4B];
+	auto ProcessEventAdd = (uintptr_t)vtable[0x4C];
 	ProcessEventR = decltype(ProcessEventR)(ProcessEventAdd);
 
 	auto End = std::chrono::steady_clock::now();
