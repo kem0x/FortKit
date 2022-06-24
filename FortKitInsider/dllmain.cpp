@@ -46,7 +46,7 @@ static void Main(HMODULE hModule)
 
 	printf("[=] Init Time: %.02f ms\n", (End - Start).count() / 1000000.);
 
-	Dumper::Dump();
+	// Dumper::Dump();
 	Dumper::GenerateUsmap();
 
 	FreeLibraryAndExitThread(hModule, 0);
