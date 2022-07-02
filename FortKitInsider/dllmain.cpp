@@ -1,3 +1,4 @@
+#include <filesystem>
 #include "consts.h"
 #include "core.h"
 #include "dumper.h"
@@ -9,16 +10,12 @@ static void Main(HMODULE hModule)
 {
 	auto Start = std::chrono::steady_clock::now();
 
-	Util::SetupConsole();
-
-	/*auto StaticLoadObjectInternalAdd = Memory::FindByString(STATICLOADOBJECTINTERNAL_STRINGREF);
-	if (!StaticLoadObjectInternalAdd)
+	if (!std::filesystem::is_directory("DUMP"))
 	{
-		MessageBoxW(nullptr, L"Cannot find StaticLoadObjectInternal.", L"Error", MB_OK);
-		return;
+		std::filesystem::create_directory("DUMP");
 	}
 
-	StaticLoadObject_Internal = decltype(StaticLoadObject_Internal)(StaticLoadObjectInternalAdd);*/
+	Util::SetupConsole();
 
 	auto GObjectsAdd = Memory::FindPattern("48 8B 05 ? ? ? ? 48 8B 0C C8 48 8D 04 D1 EB 06", true, 3);
 	if (!GObjectsAdd)
@@ -46,7 +43,7 @@ static void Main(HMODULE hModule)
 
 	printf("[=] Init Time: %.02f ms\n", (End - Start).count() / 1000000.);
 
-	// Dumper::Dump();
+	Dumper::Dump();
 	Dumper::GenerateUsmap();
 
 	FreeLibraryAndExitThread(hModule, 0);

@@ -1,10 +1,11 @@
 #pragma once
 
 #include "writer.h"
+#include "oodle.h"
 
 class Usmap
 {
-	FileWriter m_Writer = "Mappings.usmap";
+	StreamWriter m_Writer;
 	phmap::flat_hash_map<FName, int /*File Index*/> m_Names;
 
 	struct PropData
@@ -155,9 +156,6 @@ public:
 			}
 		}
 
-		m_Writer.Write<uint64_t>(0); //overwrite this later with magic, file size, etc
-		m_Writer.Write<uint32_t>(0);
-
 		m_Writer.Write<unsigned int>(m_Names.size());
 		int CurrentNameIndex = 0;
 
@@ -224,11 +222,16 @@ public:
 			}
 		}
 
-		m_Writer.Seek(0, SEEK_SET);
-		m_Writer.Write<uint16_t>(0x30C4); //magic
-		m_Writer.Write<uint8_t>(0); //version
-		m_Writer.Write<uint8_t>(0); //compression 
-		m_Writer.Write(m_Writer.Size() - 12); //compressed size
-		m_Writer.Write(m_Writer.Size() - 12); //decompressed size
+		auto CompressedData = Oodle::Compress(m_Writer.GetBuffer());
+
+		auto FileOutput = FileWriter("Mappings.usmap");
+
+		FileOutput.Write<uint16_t>(0x30C4); //magic
+		FileOutput.Write<uint8_t>(0); //version
+		FileOutput.Write<uint8_t>(1); //compression: Oodle 
+		FileOutput.Write<uint32_t>(CompressedData.size()); //compressed size
+		FileOutput.Write<uint32_t>(m_Writer.Size()); //decompressed size
+
+		FileOutput.Write(CompressedData.data(), CompressedData.size());
 	}
 };
