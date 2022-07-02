@@ -1,5 +1,7 @@
 #pragma once
 
+#include <windows.h>
+
 inline HANDLE gConsole;
 inline HANDLE gGameHandle;
 
