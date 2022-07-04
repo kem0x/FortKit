@@ -3,7 +3,8 @@
 Fortnite SDK and Type Mappings dumper.
 
 - Usage: 
-  - Compile on x64 and inject in fortnite process with no AC (after the login screen)
+  - Compile on x64 Release and inject into Fortnite without AC running. Make sure you inject after the game loads everything, like after the login screen.
+  - A folder in the executing directory named "DUMP" will be created with the contents of the SDK.
 
 
 - Future plans:
