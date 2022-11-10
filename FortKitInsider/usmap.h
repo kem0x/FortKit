@@ -45,7 +45,7 @@ class Usmap
 	{
 		m_Names.insert_or_assign(Enum->NamePrivate, 0);
 
-		for (size_t i = 0; i < Enum->Names.Num(); i++)
+		for (int i = 0; i < Enum->Names.Num(); i++)
 		{
 			m_Names.insert_or_assign(Enum->Names[i].Key, 0);
 		}
@@ -128,7 +128,7 @@ public:
 		std::vector<UStruct*> Structs;
 		Structs.reserve(15000);
 
-		for (size_t i = 0; i < GObjects->ObjectArray.NumElements; i++)
+		for (int i = 0; i < GObjects->NumElements; i++)
 		{
 			auto object = GObjects->GetByIndex(i);
 			if (object == nullptr)
@@ -185,7 +185,7 @@ public:
 			m_Writer.Write(m_Names[Enum->NamePrivate]);
 			m_Writer.Write<uint8_t>(Enum->Names.Num());
 
-			for (size_t i = 0; i < Enum->Names.Num(); i++)
+			for (int i = 0; i < Enum->Names.Num(); i++)
 			{
 				m_Writer.Write<int>(m_Names[Enum->Names[i].Key]);
 			}

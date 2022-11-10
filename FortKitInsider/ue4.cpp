@@ -133,7 +133,7 @@ bool GlobalObjects::TryFindObject(std::string startOfName, UObject& out)
 {
 	if (startOfName.empty()) return false;
 
-	for (size_t i = 0; i < ObjectArray.NumElements; i++)
+	for (int i = 0; i < NumElements; i++)
 	{
 		auto obj = GetByIndex(i);
 		if (!obj) continue;
@@ -155,7 +155,7 @@ bool GlobalObjects::TryFindObjectByName(std::string name, UObject& out)
 {
 	if (name.empty()) return false;
 
-	for (size_t i = 0; i < ObjectArray.NumElements; i++)
+	for (int i = 0; i < NumElements; i++)
 	{
 		auto obj = GetByIndex(i);
 		if (!obj) continue;

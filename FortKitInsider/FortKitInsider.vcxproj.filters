@@ -21,9 +21,6 @@
     <ClInclude Include="util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="memory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ue4.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -36,19 +33,19 @@
     <ClInclude Include="generic.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="tinyformat.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="consts.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="usmap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="writer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cppgenerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="memcury.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

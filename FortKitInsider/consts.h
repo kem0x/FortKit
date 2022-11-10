@@ -1,7 +1,11 @@
 #pragma once
 
-constexpr auto STATICLOADOBJECTINTERNAL_STRINGREF = L"STAT_LoadObject";
-constexpr auto FNAMETOSTRING_STRINGREF = L"%s %s SetTimer passed a negative or zero time. The associated timer may fail to be created/fire! If using InitialStartDelayVariance, be sure it is smaller than (Time + InitialStartDelay).";
-constexpr auto GOBJECTS_STRINGREF = L"Showing Debug for %s, Press [PageUp] and [PageDown] to cycle between targets.";
-constexpr auto PROCESSEVENT_STRINGREF = L"UMeshNetworkComponent::ProcessEvent: Invalid mesh network node type: %s";
-constexpr auto GETNAMEPOOL_STRINGREF = L"STAT_NetTickFlush";
+namespace Patterns
+{
+    constexpr auto GObjects = "48 8B 05 ? ? ? ? 48 8B 0C C8 48 8D 04 D1 EB 06";
+}
+
+namespace StringRefs
+{
+    constexpr auto FNameToString = L"%s %s SetTimer passed a negative or zero time. The associated timer may fail to be created/fire! If using InitialStartDelayVariance, be sure it is smaller than (Time + InitialStartDelay).";
+}
