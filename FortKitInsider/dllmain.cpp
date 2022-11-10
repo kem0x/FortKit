@@ -2,8 +2,8 @@
 #include "dumper.h"
 #include "framework.h"
 #include "memory.h"
-#include "util.h"
 #include "memcury.h"
+#include "exceptions.h"
 
 static void Main(HMODULE hModule)
 {
@@ -50,8 +50,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     {
     case DLL_PROCESS_ATTACH:
     {
-        CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(&Main), hModule, 0, nullptr);
-
+        __try
+        {
+            Main(hModule);
+        }
+        __except (HandlerForCallStack(GetExceptionInformation()))
+        {
+            MessageBoxA(nullptr, "Main function crashed!", "Error", MB_ICONERROR | MB_OK);
+        }
         break;
     }
     default:
