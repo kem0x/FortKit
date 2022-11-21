@@ -275,12 +275,17 @@ namespace Dumper
         }
     }
 
+    std::unordered_map<std::string, int> names;
+
     static void DumpStruct(UStruct* Struct)
     {
         if (!Struct->ChildProperties && Util::IsBadReadPtr(Struct->ChildProperties) && Struct->PropertiesSize == 0x0)
             return;
 
-        CPPGenerator::Header file("DUMP\\" + Struct->GetCPPName());
+        auto cppname = Struct->GetCPPName();
+
+        CPPGenerator::Header file("DUMP\\" + cppname + (names.contains(cppname) ? "_" + std::to_string(names[cppname]) : ""));
+        names[cppname] += 1;
 
         auto isClass = Struct->IsA(UClass::StaticClass());
 
@@ -316,9 +321,12 @@ namespace Dumper
         {
             return;
         }
+        
+        auto cppname = Enum->GetCPPString();
 
         auto fileType = ".h";
-        auto fileName = "DUMP\\" + Enum->GetCPPString() + fileType; // UObject::GetName can be used too but this is good
+        auto fileName = "DUMP\\" + cppname + (names.contains(cppname) ? "_" + std::to_string(names[cppname]) : "") + fileType; // UObject::GetName can be used too but this is good
+        names[cppname] += 1;
 
         std::ofstream file(fileName);
         file << "// " << Enum->GetFullName() << std::endl;
