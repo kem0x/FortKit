@@ -275,7 +275,7 @@ namespace Dumper
         }
     }
 
-    std::unordered_map<std::string, int> names;
+    phmap::flat_hash_map<std::string, int> names;
 
     static void DumpStruct(UStruct* Struct)
     {
