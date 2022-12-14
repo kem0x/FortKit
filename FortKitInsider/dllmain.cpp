@@ -7,32 +7,20 @@
 
 static void Main(HMODULE hModule)
 {
-    auto Start = std::chrono::steady_clock::now();
-
     Util::SetupConsole();
 
-    auto GObjectsAdd = Memcury::Scanner::FindPattern(Patterns::GObjects)
-                           .RelativeOffset(3)
-                           .GetAs<void*>();
-    if (!GObjectsAdd)
-    {
-        MessageBoxW(nullptr, L"Cannot find GObjects.", L"Error", MB_OK);
-        return;
-    }
+    Memcury::Safety::SetExceptionMode<Memcury::Safety::ExceptionMode::CatchDllExceptionsOnly>();
 
-    GObjects = decltype(GObjects)(GObjectsAdd);
+    auto Start = std::chrono::steady_clock::now();
 
-    auto FNameToStringAdd = Memcury::Scanner::FindStringRef(StringRefs::FNameToString)
-                                .ScanFor({ Memcury::ASM::CALL }, false)
-                                .RelativeOffset(1)
-                                .GetAs<void*>();
-    if (!FNameToStringAdd)
-    {
-        MessageBoxW(nullptr, L"Cannot find FNameToString.", L"Error", MB_OK);
-        return;
-    }
+    GObjects = Memcury::Scanner::FindPattern(Patterns::GObjects)
+                   .RelativeOffset(3)
+                   .GetAs<decltype(GObjects)>();
 
-    FNameToString = decltype(FNameToString)(FNameToStringAdd);
+    FNameToString = Memcury::Scanner::FindStringRef(StringRefs::FNameToString)
+                        .ScanFor({ Memcury::ASM::CALL }, false)
+                        .RelativeOffset(1)
+                        .GetAs<decltype(FNameToString)>();
 
     auto End = std::chrono::steady_clock::now();
 
