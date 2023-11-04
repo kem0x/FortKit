@@ -485,8 +485,6 @@ public:
         FField* Field;
         UObject* Object;
     } Container;
-
-    bool bIsUObject;
 };
 
 enum class FFieldClassID : uint64_t
@@ -676,8 +674,8 @@ public:
 class FArrayProperty : public FProperty
 {
 public:
-    FProperty* Inner;
     EArrayPropertyFlags ArrayFlags;
+    FProperty* Inner;
 };
 
 class FStructProperty : public FProperty
@@ -793,7 +791,7 @@ class UStruct : public UField, FStructBaseChain
 public:
     UStruct* SuperStruct;
     UField* Children;
-    FProperty* ChildProperties;
+    FField* ChildProperties;
     int32_t PropertiesSize;
     int32_t MinAlignment;
     TArray<uint8_t> Script;
@@ -804,6 +802,7 @@ public:
     TArray<UObject*> ScriptAndPropertyObjectReferences;
     void* UnresolvedScriptProperties;
     void* UnversionedSchema;
+    bool bHasAssetRegistrySearchableProperties;
 
     static class UClass* StaticClass();
 };

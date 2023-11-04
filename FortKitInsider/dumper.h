@@ -174,12 +174,12 @@ namespace Dumper
             return;
         }
 
-        std::vector<FNativeFunctionLookup> nativeFunctions;
+        // std::vector<FNativeFunctionLookup> nativeFunctions;
 
-        if (Struct->NativeFunctionLookupTable.Num() > 0)
-        {
-            nativeFunctions = Struct->NativeFunctionLookupTable.ToVector();
-        }
+        // if (Struct->NativeFunctionLookupTable.Num() > 0)
+        // {
+        //    nativeFunctions = Struct->NativeFunctionLookupTable.ToVector();
+        // }
 
         file.AddText("\n\t/* Functions */\n");
 
@@ -196,13 +196,13 @@ namespace Dumper
 
                 retType = "void";
 
-                auto paramChild = function->ChildProperties;
+                auto paramChild = (FProperty*)function->ChildProperties;
 
                 while (paramChild)
                 {
-                    auto paramType = Generic::StringifyPropType(reinterpret_cast<FProperty*>(paramChild));
+                    auto paramType = Generic::StringifyPropType(paramChild);
 
-                    if (reinterpret_cast<FProperty*>(paramChild)->PropertyFlags & CPF_ReturnParm)
+                    if (paramChild->PropertyFlags & CPF_ReturnParm)
                     {
                         if (!paramType.empty())
                         {
@@ -240,7 +240,7 @@ namespace Dumper
                 auto name = function->GetName();
                 Util::FixName(name);
 
-                auto nativeFunctionLookup = std::find_if(nativeFunctions.begin(), nativeFunctions.end(),
+                /* auto nativeFunctionLookup = std::find_if(nativeFunctions.begin(), nativeFunctions.end(),
                     [&](const FNativeFunctionLookup& lookup)
                     {
                         return lookup.Name.ToString().starts_with(function->GetName());
@@ -254,7 +254,7 @@ namespace Dumper
                     nativeFunctions.erase(nativeFunctionLookup);
                 }
 
-                file.AddText(std::format("\n\t// {}{}\n", function->GetFullName(), nativeFuncComment));
+                file.AddText(std::format("\n\t// {}{}\n", function->GetFullName(), nativeFuncComment));*/
 
                 file.AddText(std::format("\t{}{} {}({}); // {}\n", (function->FunctionFlags & FUNC_Static ? "static " : ""), retType, name, functionSig, Generic::StringifyFlags(function->FunctionFlags)));
 
@@ -264,15 +264,15 @@ namespace Dumper
             child = child->Next;
         }
 
-        if (nativeFunctions.size() > 0)
-        {
-            file.AddText("\n\t/* Unreflected Native Functions */\n");
+        // if (nativeFunctions.size() > 0)
+        // {
+        //    file.AddText("\n\t/* Unreflected Native Functions */\n");
 
-            for (auto&& lookup : nativeFunctions)
-            {
-                file.AddText(std::format("\t// Function: {} 0x{:x}\n", lookup.Name.ToString(), (uintptr_t)lookup.Pointer - ModuleBase));
-            }
-        }
+        //    for (auto&& lookup : nativeFunctions)
+        //    {
+        //        file.AddText(std::format("\t// Function: {} 0x{:x}\n", lookup.Name.ToString(), (uintptr_t)lookup.Pointer - ModuleBase));
+        //    }
+        // }
     }
 
     phmap::flat_hash_map<std::string, int> names;
@@ -321,7 +321,7 @@ namespace Dumper
         {
             return;
         }
-        
+
         auto cppname = Enum->GetCPPString();
 
         auto fileType = ".h";

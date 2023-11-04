@@ -7,5 +7,5 @@ namespace Patterns
 
 namespace StringRefs
 {
-    constexpr auto FNameToString = L"\n%s%s: IsActivated? [%s]. LayerId=[%d]. [%d] Normal Bindings.";
+    constexpr auto FNameToString = L"Loading Module %s";
 }
